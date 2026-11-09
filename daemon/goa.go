@@ -349,6 +349,15 @@ type goaLine struct {
 	// Report: it holds what the session reported, which goes even once its task is
 	// settled, said to be so: a report never goes without a word.
 	Report bool `json:"report,omitempty"`
+	// Stall: it says its task isn't moving (goa_stall.go), told once while it waits.
+	Stall bool `json:"stall,omitempty"`
+}
+
+// goaWaits says a line about task waits for GOA, of those match takes.
+func (s *Server) goaWaits(task string, match func(goaLine) bool) bool {
+	s.goa.mu.Lock()
+	defer s.goa.mu.Unlock()
+	return slices.ContainsFunc(s.goa.tell, func(l goaLine) bool { return l.Task == task && match(l) })
 }
 
 // goaSettledNote follows a report whose task was settled before GOA took it.
