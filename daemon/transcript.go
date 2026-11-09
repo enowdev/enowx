@@ -292,7 +292,8 @@ func (s *Server) findTranscript(id string, info proto.SessionInfo, home string, 
 // being the one it follows. Agents keep conversations by folder, and an older session's in
 // the same folder keeps changing, so a file's being new says nothing of whose it is:
 //   - in the session's own folder (Preset.SessionDir), the newest is its own;
-//   - a conversation known by id is that file alone, written or not;
+//   - a conversation known by id is that file alone, written or not: one its agent's hook
+//     named, else the one its agent's process says it is on (no hooks), else the one kept;
 //   - otherwise, a conversation that began after the session did and no other session is on.
 //
 // What it finds is kept as the session's, so that resuming and a restart go on with it.
@@ -317,6 +318,10 @@ func (s *Server) ownTranscript(id string, info proto.SessionInfo, home, current 
 		return stored[0].Path
 	}
 	want := s.transcripts.toldOf(id)
+	if want == "" {
+		// What its agent says it runs: begun before the session or not, it is its own.
+		want = runningConversation(id, info.Agent, home)
+	}
 	if want == "" {
 		want = meta.Conversation
 	}
