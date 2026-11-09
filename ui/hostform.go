@@ -32,6 +32,8 @@ type addHostForm struct {
 	// regular user ("" lets enowX pick its own, made when missing).
 	asRoot bool
 	runAs  string
+	// startConnect: the host connects in the background as the app starts.
+	startConnect bool
 }
 
 func (a *App) addHostDialog(c *ui.Context) {
@@ -99,6 +101,7 @@ func (a *App) addHostDialog(c *ui.Context) {
 			submit = widget.Input(c, &f.jump, "user@bastion · a server in front of it; ~/.ssh/config's ProxyJump otherwise").FillWidth().Font(theme.MonoFont).Submitted() || submit
 		})
 		a.runAsField(c, f)
+		switchRow(c, &f.startConnect, "Connect at start", "Connects in the background when enowX starts, so its sessions show in the list without opening it. A host that needs you (a password not saved, a key to trust) waits until you open it.")
 		switchRow(c, &f.tailnet, "Through enowX's own tailnet", "enowX joins your tailnet as a device of its own, so the server is reached by its tailnet name without Tailscale on this machine. It asks you to sign in once.")
 		if f.editing.PasswordAuth && !f.forgetPassword {
 			ui.Row(c.Key("password")).FillWidth().Shrink(0).Gap(theme.S2).Children(func() {
@@ -143,7 +146,7 @@ func (a *App) saveHost() {
 	}
 	h := f.editing // keeps the ID, the run-as choice and a saved password
 	h.Name, h.Address, h.IdentityFile, h.Jump = f.name, f.address, strings.TrimSpace(f.identity), strings.TrimSpace(f.jump)
-	h.Kind, h.Tailnet = "", f.tailnet
+	h.Kind, h.Tailnet, h.NoStartConnect = "", f.tailnet, !f.startConnect
 	if f.device {
 		h.Kind = hosts.KindDevice
 	}
@@ -181,7 +184,7 @@ func (a *App) saveHost() {
 // openEditHost opens the host dialog on a saved host.
 func (a *App) openEditHost(h hosts.Host) {
 	a.addHost = addHostForm{open: true, manual: true, editing: h, name: h.Name, address: h.Address, identity: h.IdentityFile, jump: h.Jump, device: h.Kind == hosts.KindDevice, tailnet: h.Tailnet,
-		asRoot: h.KeepRoot, runAs: h.RunAs}
+		asRoot: h.KeepRoot, runAs: h.RunAs, startConnect: !h.NoStartConnect}
 }
 
 func (a *App) storedHost(id string) (hosts.Host, bool) {
