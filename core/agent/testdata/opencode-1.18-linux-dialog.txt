@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+
+                                Update Available                                     esc
+
+                                A new release v1.19.5 is available. Would you like to
+                                update now?
+
+
+                                                                          Skip  Confirm
+
+                       ┃
+                       ┃  Ask anything… "Fix a TODO in the codebase"
+                       ┃
+                       ┃  Build · Big Pickle OpenCode Zen
+                       ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                                                       tab agents  ctrl+p commands
+
+
+
+                                ● Tip Run /connect to add an AI provider and start coding
+
+
+
+
+
+
+
+
+
+  ~/code/shop                                                   1.18.35
