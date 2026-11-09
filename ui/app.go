@@ -161,6 +161,7 @@ type App struct {
 	setupPolled        time.Time                  // when the setup's status was last read
 	drift              map[string]int             // steps a host lacks to be what this device is, by host ID
 	watches            map[string]*hostWatch      // the hosts not shown, by ID
+	opened             map[string]bool            // hosts the user connected to this run: watched even with Connect at start off
 	dsync              dataSync                   // the user's data synced between hosts
 	feats              *hostFeatures              // the connected host's feature switches
 	noteChatsRead      noteChats                  // notes' conversations with their agents
@@ -270,11 +271,14 @@ type App struct {
 	// by keychainMu, which is held while reading.
 	keychainMu   sync.Mutex
 	keychainRead map[string]string
-	peers        []tailnet.Peer // the tailnet's devices, if Tailscale runs
-	peersErr     string         // why there are none
-	peersLoaded  bool           // the tailnet was asked at least once
-	peersAt      time.Time      // when the tailnet's devices were asked for, for the hosts menu
-	tailUser     string         // SSH user for tailnet devices
+	// keychainMissed are hosts whose watch found no password there this run:
+	// they wait for the user, the keychain not asked again.
+	keychainMissed map[string]bool
+	peers          []tailnet.Peer // the tailnet's devices, if Tailscale runs
+	peersErr       string         // why there are none
+	peersLoaded    bool           // the tailnet was asked at least once
+	peersAt        time.Time      // when the tailnet's devices were asked for, for the hosts menu
+	tailUser       string         // SSH user for tailnet devices
 
 	agents     []proto.AgentInfo
 	daemonInfo proto.DaemonInfo // the connected daemon, as it described itself
@@ -430,7 +434,10 @@ func (a *App) Open() *mygo.Window {
 	a.win.OnBlur(func() { a.blurred = true; a.unfocused.Store(true) })
 	setAppMenu(a)
 	a.holdForUnsaved()
+	stopWakes := make(chan struct{})
+	go a.watchWakes(stopWakes)
 	a.win.OnClosed(func() {
+		close(stopWakes)
 		stopAppearance()
 		a.disconnect()
 		a.stopWatches()
