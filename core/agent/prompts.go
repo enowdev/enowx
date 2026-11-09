@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // What a screen shows an agent is stopped on, for any agent and wherever it
@@ -269,14 +270,41 @@ func deadlineIn(lines []string) string {
 	return ""
 }
 
-// tailLines are screen's last n lines with text, trimmed, oldest first.
+// tailLines are screen's last n lines with text, trimmed, oldest first, a rule cut from
+// a row wrapped onto it.
 func tailLines(screen string, n int) []string {
 	var out []string
 	all := strings.Split(screen, "\n")
 	for i := len(all) - 1; i >= 0 && len(out) < n; i-- {
-		if t := strings.TrimSpace(all[i]); t != "" {
-			out = append([]string{t}, out...)
+		parts := splitWrappedRule(strings.TrimSpace(all[i]))
+		for j := len(parts) - 1; j >= 0 && len(out) < n; j-- {
+			if parts[j] != "" {
+				out = append([]string{parts[j]}, out...)
+			}
 		}
 	}
 	return out
+}
+
+// ruleChars draw a rule across the screen.
+const ruleChars = "─━═"
+
+// ruleRunMin is how long a run of ruleChars at a line's start must be to be a rule drawn
+// across the screen, not a dash or two of what a line says.
+const ruleRunMin = 8
+
+// splitWrappedRule cuts a rule drawn across the screen from what was written right after
+// it. ConPTY (Windows) writes a line as wide as the screen with no line break after it, so
+// the terminal keeps the next row as its soft-wrapped rest, and its text joins them:
+// Claude Code's composer reads as "────❯", which no prompt mark alone matches.
+func splitWrappedRule(line string) []string {
+	rest := strings.TrimLeft(line, ruleChars)
+	rule := line[:len(line)-len(rest)]
+	if utf8.RuneCountInString(rule) < ruleRunMin {
+		return []string{line}
+	}
+	if rest = strings.TrimSpace(rest); rest == "" {
+		return []string{line}
+	}
+	return []string{rule, rest}
 }
