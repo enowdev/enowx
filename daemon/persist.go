@@ -266,17 +266,23 @@ func equalRecords(a, b record) bool {
 // continue their last conversation), the others as they ended.
 func (s *Server) restore() {
 	for _, r := range s.persist.saved() {
+		relaunch := r.Relaunch
+		if !relaunch && r.Agent != "" {
+			if preset, ok := agent.Find(r.Agent); ok && len(preset.Continue) > 0 {
+				relaunch = true
+			}
+		}
 		spec := session.Spec{
 			ID: r.ID, Dir: r.Dir, Created: r.Created, History: s.persist.loadHistory(r.ID), Env: s.hostEnvFor(r.Member),
 			Meta: session.Meta{
 				FinishedAt: r.Finished,
 				Name:       r.Name, Prompt: r.Prompt, Project: r.Project, Agent: r.Agent, Branch: r.Branch,
-				Worktree: r.Worktree, SkipPermissions: r.Skip, SkipUnheard: r.Unheard, Model: r.Model, Effort: r.Effort, Mode: r.Mode, ModelStarted: r.Started, ModelMoved: r.Moved, Conversation: r.Convo, ConvoSince: r.Since, Relaunch: r.Relaunch, Restart: r.Restart, Restored: true,
+				Worktree: r.Worktree, SkipPermissions: r.Skip, SkipUnheard: r.Unheard, Model: r.Model, Effort: r.Effort, Mode: r.Mode, ModelStarted: r.Started, ModelMoved: r.Moved, Conversation: r.Convo, ConvoSince: r.Since, Relaunch: relaunch, Restart: r.Restart, Restored: true,
 				Budget: time.Duration(r.Budget) * time.Second, Parent: r.Parent, Note: r.Note, Group: r.Group, Account: r.Account, Config: r.Config, Member: r.Member, Private: r.Private, NotesFor: r.NotesFor, CanvasFor: r.Canvas, GOA: r.GOA, GOAWorker: r.GOAWorker, Features: r.Features, Creds: r.Creds,
 				Hibernated: r.Hibernated, HibernatedByHand: r.HibernatedByHand, HibernatedAt: r.HibernatedAt, NoAutoHibernate: r.NoAutoHibernate, Rules: r.Rules,
 			},
 		}
-		if r.Relaunch {
+		if spec.Meta.Relaunch {
 			keepBypass(&spec.Meta)
 		}
 		for _, what := range r.Lost {
@@ -435,7 +441,11 @@ func (s *Server) resumeSessionIn(id, convo, mode string) (*session.Session, erro
 		return nil, fmt.Errorf("it ended right after starting %d times in a row, so enowX won't start it again by itself: %s", quickExitsMax, info.ExitWhy)
 	}
 	if !meta.Relaunch {
-		return nil, errors.New("this session's command can't be continued: start it again in a new session")
+		if preset, ok := agent.Find(meta.Agent); ok && len(preset.Continue) > 0 {
+			meta.Relaunch = true
+		} else {
+			return nil, errors.New("this session's command can't be continued: start it again in a new session")
+		}
 	}
 	command, restart := meta.Restart, meta.Restart
 	run, err := s.configRunFor(id, meta) // its config, as it starts again
@@ -519,7 +529,20 @@ func (s *Server) sessionConversation(sess *session.Session) string {
 	if preset, ok := agent.Find(meta.Agent); !ok || len(preset.Resume) == 0 || !transcript.Supports(meta.Agent) {
 		return ""
 	}
-	return transcript.ConversationID(meta.Agent, s.transcriptPath(sess.ID()))
+	convo := transcript.ConversationID(meta.Agent, s.transcriptPath(sess.ID()))
+	if convo != "" {
+		return convo
+	}
+	if meta.Conversation != "" {
+		return meta.Conversation
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		found := transcript.Find(meta.Agent, home, sess.Info().Dir)
+		if len(found) > 0 {
+			return transcript.ConversationID(meta.Agent, found[0].Path)
+		}
+	}
+	return ""
 }
 
 // agentEnv is what meta's agent runs with when started again: its

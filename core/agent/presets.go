@@ -187,6 +187,8 @@ var Presets = []Preset{
 		ID: "antigravity", Name: "Antigravity", Command: "agy",
 		PromptFlag:      []string{"--prompt-interactive"},
 		SkipPermissions: []string{"--dangerously-skip-permissions"},
+		Continue:        []string{"--continue"},
+		Resume:          []string{"--conversation"},
 		Homepage:        "https://antigravity.google/docs/cli-overview",
 	},
 	{
