@@ -46,3 +46,29 @@ func TestGOAReportJoinedStaysAReport(t *testing.T) {
 		t.Fatalf("waiting: %+v", srv.goa.tell)
 	}
 }
+
+// A settled task's report GOA can't take yet goes back to wait, as goaFlush and
+// goaTakeAtStop put it back, and still says its task is settled once when it goes.
+func TestGOASettledNoteSaidOnce(t *testing.T) {
+	srv := startServer(t)
+	task, err := srv.goa.board.Add(proto.GOATask{Title: "settled", Session: "a-session", Status: proto.GOATaskWorking})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.goa.board.Update(task.ID, func(x *proto.GOATask) { x.Status = proto.GOATaskDone }); err != nil {
+		t.Fatal(err)
+	}
+	srv.goa.mu.Lock()
+	srv.goa.tell = []goaLine{{Text: "it reports done", Task: task.ID, Session: "a-session", Turn: goaLineReport, Report: true, Closed: true}}
+	srv.goa.mu.Unlock()
+	for range 3 {
+		lines := srv.goaLinesToSay()
+		srv.goa.mu.Lock()
+		srv.goa.tell = append(lines, srv.goa.tell...)
+		srv.goa.mu.Unlock()
+	}
+	got := srv.goaLinesToSay()
+	if len(got) != 1 || strings.Count(got[0].Text, goaSettledNote) != 1 {
+		t.Fatalf("after three returns: %+v", got)
+	}
+}

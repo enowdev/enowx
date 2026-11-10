@@ -461,7 +461,10 @@ func (s *Server) goaLinesToSay() []goaLine {
 		case l.Task == "" || !s.goa.board.IsSettled(l.Task):
 			out = append(out, l)
 		case l.Report:
-			l.Text += goaSettledNote
+			// Once: a line GOA couldn't take comes back here with it said already.
+			if !strings.HasSuffix(l.Text, goaSettledNote) {
+				l.Text += goaSettledNote
+			}
 			out = append(out, l)
 		}
 	}
