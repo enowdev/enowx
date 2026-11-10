@@ -24,7 +24,8 @@ import (
 // before it stops, and what fails after that puts it back as it was.
 
 // goaSwitchSettle is how long a restarted agent is watched: one that can't take the
-// conversation or can't start at all says so and ends within this.
+// conversation or can't start at all says so and ends within this. An agent not seen yet
+// is waited for up to this, its wrapper (PowerShell, on Windows) being slow to start it.
 var goaSwitchSettle = 5 * time.Second
 
 // goaSwitchPlan is a change that can be made.
@@ -405,18 +406,57 @@ func (s *Server) goaStartOnAgent(id string, plan goaSwitchPlan) (*session.Sessio
 // or start ends, leaving the shell after it. What it can't tell yet (a key an API refuses
 // at its first request) is its screen's to say.
 func (s *Server) goaStaysUp(id string) error {
-	deadline := time.Now().Add(goaSwitchSettle)
-	for time.Now().Before(deadline) {
-		time.Sleep(200 * time.Millisecond)
-		sess, err := s.sessions.Get(id)
-		if err != nil {
-			return err
+	sess, err := s.sessions.Get(id)
+	if err != nil {
+		return err
+	}
+	look := func() startLook {
+		if now, err := s.sessions.Get(id); err != nil || now.Info().Exited {
+			return agentExited
 		}
-		if info := sess.Info(); info.Exited || s.agentGone(id) {
-			return fmt.Errorf("its agent ended right after starting: %s", lastScreenLine(sess.Terminal().Text()))
+		if s.agentGone(id) {
+			return agentNotRunning
+		}
+		return agentRunning
+	}
+	if agentTakes(goaSwitchSettle, 200*time.Millisecond, look) {
+		return nil
+	}
+	if now, err := s.sessions.Get(id); err == nil {
+		sess = now
+	}
+	return fmt.Errorf("its agent ended right after starting: %s", lastScreenLine(sess.Terminal().Text()))
+}
+
+// startLook is what one look at a starting session's processes saw.
+type startLook int
+
+const (
+	agentRunning    startLook = iota // the agent runs under its wrapper
+	agentNotRunning                  // the wrapper runs alone: the agent not started yet, or ended
+	agentExited                      // the session itself has ended
+)
+
+// agentTakes watches a session starting its agent for settle, looking every so often, and says
+// it took. A wrapper alone is no failure until its agent was seen: PowerShell on Windows takes
+// over a second to start the program it wraps. An agent never seen fails only when settle is
+// up, so one that ends between two looks is still caught.
+func agentTakes(settle, every time.Duration, look func() startLook) bool {
+	seen := false
+	for deadline := time.Now().Add(settle); time.Now().Before(deadline); {
+		time.Sleep(every)
+		switch look() {
+		case agentExited:
+			return false
+		case agentRunning:
+			seen = true
+		case agentNotRunning:
+			if seen {
+				return false
+			}
 		}
 	}
-	return nil
+	return seen || look() == agentRunning
 }
 
 // lastScreenLine is what a screen ends on, cut, and what reads as a key masked.

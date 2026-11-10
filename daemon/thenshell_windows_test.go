@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/enowx/enowx/core/agent"
 )
@@ -91,5 +92,39 @@ func TestAgentThroughCmdShim(t *testing.T) {
 	data, err := os.ReadFile(got[i+1])
 	if err != nil || !strings.HasSuffix(string(data), guide) {
 		t.Fatalf("the guide's file: %d bytes of %d, %v", len(data), len(guide), err)
+	}
+}
+
+// GOA's switch on Windows: PowerShell staying on (-NoExit) runs alone before it starts the
+// agent, which reads as gone; the switch waits for the agent, and fails once it has ended.
+func TestGOASwitchWaitsForPowerShellToStartTheAgent(t *testing.T) {
+	const root, agentPID = 100, 101
+	args := func(pid int) []string {
+		if pid == root {
+			return []string{"pwsh.exe", "-NoLogo", "-NoExit", "-Command", psLegacy + "& 'claude' '--strict-mcp-config'"}
+		}
+		return []string{"claude.exe"}
+	}
+	// What each look sees: PowerShell alone while it starts, then the agent under it.
+	tables := []map[int][]int{{}, {}, {}, {}, {root: {agentPID}}}
+	n := 0
+	look := func() startLook {
+		kids := tables[min(n, len(tables)-1)]
+		n++
+		if programGone(root, kids, args) {
+			return agentNotRunning
+		}
+		return agentRunning
+	}
+	if !programGone(root, map[int][]int{}, args) {
+		t.Fatal("PowerShell alone doesn't read as its program gone, so this tests nothing")
+	}
+	if !agentTakes(200*time.Millisecond, 10*time.Millisecond, look) {
+		t.Fatal("an agent PowerShell hadn't started yet was taken as ended")
+	}
+	// The agent seen, then PowerShell alone again: it ended.
+	tables, n = []map[int][]int{{}, {root: {agentPID}}, {}}, 0
+	if agentTakes(5*time.Second, 10*time.Millisecond, look) || n != 3 {
+		t.Fatalf("an agent that ended after starting: taken, or known only after %d looks", n)
 	}
 }
