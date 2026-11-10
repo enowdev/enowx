@@ -2,6 +2,30 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.8.0
+
+Saved hosts connect when the app starts, GOD of Agents on OpenCode now hears its workers, and GOD of Agents works on Windows: changing its agent takes, and workers' reports reach it.
+
+- **Every saved host connects at start.** enowX connects to each saved host in the background when it starts, so their sessions show under **On other hosts** without opening them ([#55](https://github.com/enowdev/enowx/pull/55)).
+  - **Signing in:** a host that signs in by password uses the password saved in the keychain, read once per run.
+  - **Hosts that need you wait:** a password not saved, a key's passphrase, a server key not trusted yet, whom to run as, or a Tailscale browser check. They show "connect to sign in" until you open them.
+  - **Offline hosts:** a host that doesn't answer shows "offline · retrying" in the Hosts list, without a dialog. It is tried again with a growing wait, and at once when the window comes back or the computer wakes from sleep.
+  - **Turning it off:** **Connect at start** in Hosts › ⋯ › Edit… is on for every host. Turned off, a host connects only once you open it.
+- **GOD of Agents on OpenCode hears its workers** ([#51](https://github.com/enowdev/enowx/issues/51), [#54](https://github.com/enowdev/enowx/pull/54)). OpenCode has no hook to wake GOA, so a worker's report is typed in only once OpenCode's input box is empty, and enowX didn't recognise that box. Reports waited for good; now they go in. Nothing is typed while a draft is there, while OpenCode works, or while a dialog is open.
+- **Stall warnings no longer pile up** ([#51](https://github.com/enowdev/enowx/issues/51), [#54](https://github.com/enowdev/enowx/pull/54)). The watchdog warned GOA again and again about a task whose worker had already reported, filling the waiting lines and pushing real reports out. A task that reported isn't flagged as stalled, and no new warning comes while the last one still waits.
+- **GOD of Agents on Windows** ([#53](https://github.com/enowdev/enowx/pull/53), by @Tiyouw):
+  - **Changing its agent or config:** this always failed and put GOA back, because PowerShell takes over a second to start the agent. Now it waits for the agent to start.
+  - **Workers' reports:** they reach an idle GOA by itself on Claude Code again, including after the conversation is named. On Windows the line above Claude Code's input box read as part of it, so the box never looked empty.
+  - **GOA's chat:** it follows the conversation its terminal runs, also one resumed by hand.
+  - **Adding a Linux server:** this works from a build made on Windows, whose checkout gave the server scripts Windows line endings.
+- **A report for a task already settled still reaches GOA**, saying so ([#53](https://github.com/enowdev/enowx/pull/53)), with that note said once however long it waits ([#56](https://github.com/enowdev/enowx/pull/56)).
+
+### What has been tested
+
+- Each change has tests that run on Linux and in CI on macOS, Windows and Linux. The OpenCode input box is tested with screens of OpenCode 1.18.35 captured on Linux, and with the Windows lines from #51.
+- **Connecting hosts at start hasn't been tried by hand in the app yet:** the macOS keychain prompt (macOS may ask once per host, after an update, whether enowX may read the saved password), coming back after sleep, and the per-host switch.
+- **OpenCode as GOA on Windows wasn't run by hand.** The Windows fixes from #53 were used on a Windows 11 machine by their author.
+
 ## 0.7.2
 
 Three fixes from @sicknewbie's report on Windows 11 after updating to 0.7.1 ([#49](https://github.com/enowdev/enowx/issues/49)), a way to restart GOD of Agents on its own conversation, and the Browser docked in the side panel.
