@@ -72,9 +72,9 @@ func (a *App) appearancePage(c *ui.Context) {
 				a.backgroundCard(c)
 				ui.Grid(c).FillWidth().Grow(1).Columns(2).Gap(theme.S3).AlignItems(ui.Stretch).Children(func() {
 					widget.Card(c).Children(func() { a.appearanceMode(c) })
-					widget.Card(c).Children(func() { a.windowControlStyleCard(c) })
+					widget.Card(c).Children(func() { a.accentPicker(c) })
 				})
-				widget.Card(c).Children(func() { a.accentPicker(c) })
+				widget.Card(c).Children(func() { a.windowControlStyleCard(c) })
 			})
 			widget.Card(c).Grow(5).Basis(0).Children(func() { a.themePreview(c) })
 		})

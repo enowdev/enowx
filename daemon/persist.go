@@ -533,16 +533,7 @@ func (s *Server) sessionConversation(sess *session.Session) string {
 	if convo != "" {
 		return convo
 	}
-	if meta.Conversation != "" {
-		return meta.Conversation
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		found := transcript.Find(meta.Agent, home, sess.Info().Dir)
-		if len(found) > 0 {
-			return transcript.ConversationID(meta.Agent, found[0].Path)
-		}
-	}
-	return ""
+	return meta.Conversation
 }
 
 // agentEnv is what meta's agent runs with when started again: its
