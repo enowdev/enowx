@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/core/goa"
+	"github.com/enowx/enowx/core/session"
 	"github.com/enowx/enowx/proto"
 )
 
@@ -191,5 +192,82 @@ func TestStallTellsAgainAfterThreeLimits(t *testing.T) {
 	srv.stallCheck(w, task, h, lim)
 	if f.told.Equal(late) {
 		t.Fatal("no further line after three times the limit")
+	}
+}
+
+// A task whose session reported how its turn ended isn't told of as stalled, nor one
+// whose report waits for GOA; and a stall line waiting for GOA isn't followed by another
+// for the same task, however long GOA takes (#51: hundreds of them filled goa-tell.json).
+func TestStallLinesDontPileUp(t *testing.T) {
+	srv := startServer(t)
+	g, err := srv.sessions.Create(session.Spec{Command: []string{"sleep", "60"}, Dir: t.TempDir(), Meta: session.Meta{GOA: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { srv.sessions.Kill(g.ID()) })
+	lim := proto.GOAStall{Blank: 100, Idle: 100, Stuck: 100}
+	screen := "something\n"
+	h := stallHost{infos: map[string]proto.SessionInfo{"s1": {ID: "s1", Agent: "some-agent"}}, cpuKnown: true,
+		cpuOf:  func(string) float64 { return 0 },
+		screen: func(string) (string, error) { return screen, nil }}
+	stalls := func(task string) int {
+		srv.goa.mu.Lock()
+		defer srv.goa.mu.Unlock()
+		n := 0
+		for _, l := range srv.goa.tell {
+			if l.Task == task && l.Stall {
+				n++
+			}
+		}
+		return n
+	}
+	check := func(task proto.GOATask) (*stallFollow, *stallWatch) {
+		f := &stallFollow{screen: screen, since: time.Now().Add(-time.Hour)}
+		w := &stallWatch{follows: map[string]*stallFollow{task.ID: f}, sampled: map[string]bool{}}
+		srv.stallCheck(w, task, h, lim)
+		return f, w
+	}
+
+	quiet, err := srv.goa.board.Add(proto.GOATask{Title: "quiet", Session: "s1", Status: proto.GOATaskWorking, Created: time.Now().Add(-2 * time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, w := check(quiet)
+	if stalls(quiet.ID) != 1 {
+		t.Fatalf("a stalled task: %d lines", stalls(quiet.ID))
+	}
+	quiet.Status = proto.GOATaskStalled
+	for range 5 {
+		f.told = time.Now().Add(-time.Hour) // long past three limits
+		srv.stallCheck(w, quiet, h, lim)
+	}
+	if n := stalls(quiet.ID); n != 1 {
+		t.Fatalf("%d stall lines for one task while the first still waits", n)
+	}
+
+	reported, err := srv.goa.board.Add(proto.GOATask{Title: "done", Session: "s1", Status: proto.GOATaskWorking, Created: time.Now().Add(-2 * time.Hour),
+		Outcome: "done", ReportAt: time.Now().Add(-61 * time.Minute).UnixMilli()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check(reported); stalls(reported.ID) != 0 {
+		t.Fatal("a task that reported done was told of as stalled")
+	}
+	before, err := srv.goa.board.Add(proto.GOATask{Title: "again", Session: "s1", Status: proto.GOATaskWorking, Created: time.Now().Add(-5 * time.Hour),
+		Outcome: "done", ReportAt: time.Now().Add(-4 * time.Hour).UnixMilli()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check(before); stalls(before.ID) != 1 {
+		t.Fatal("a report from before its session last moved kept a stall from being told")
+	}
+
+	waiting, err := srv.goa.board.Add(proto.GOATask{Title: "told", Session: "s1", Status: proto.GOATaskWorking, Created: time.Now().Add(-2 * time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.goaTellLine(goaLine{Text: "[enowX GOA] Task reports done", Task: waiting.ID, Session: "s1", Turn: goaLineReport})
+	if check(waiting); stalls(waiting.ID) != 0 {
+		t.Fatal("a task whose report waits for GOA was told of as stalled")
 	}
 }

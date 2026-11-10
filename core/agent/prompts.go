@@ -173,7 +173,7 @@ func PromptEmpty(screen string) bool {
 	if lastMatch(lines, emptyPlaceholder) >= 0 {
 		return !workingShown.MatchString(strings.Join(lines, "\n"))
 	}
-	return bareMark(lines) >= 0
+	return bareMark(lines) >= 0 || openCodeEmpty(lines)
 }
 
 // lastMatch is the last of lines re matches, -1 for none.

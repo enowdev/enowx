@@ -448,6 +448,14 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 		}
 		return
 	}
+	if s.stallReported(t, f) {
+		// GOA hears how its turn ended: that says more than its being still.
+		f.told, f.fired = time.Time{}, false
+		if t.Status == proto.GOATaskStalled {
+			s.stallMark(t.ID, proto.GOATaskStalled, proto.GOATaskWorking)
+		}
+		return
+	}
 	if t.Status != proto.GOATaskStalled && !s.stallMark(t.ID, proto.GOATaskWorking, proto.GOATaskStalled) {
 		return // settled meanwhile
 	}
@@ -456,6 +464,9 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 	}
 	if !f.told.IsZero() && now.Sub(f.told) < stallAgain*limit {
 		return
+	}
+	if s.goaWaits(t.ID, func(l goaLine) bool { return l.Stall }) {
+		return // the line before still waits for GOA: another says nothing new
 	}
 	f.told = now
 	line := fmt.Sprintf("%s, for %s", why, look.Still.Round(time.Second))
@@ -472,7 +483,21 @@ func (s *Server) stallCheck(w *stallWatch, t proto.GOATask, h stallHost, lim pro
 	if look.NoCPU {
 		line += " (its host can't say what its processes use, so it may be a long build)"
 	}
-	s.goaTellLine(goaLine{Text: stallLine(t, line, text), Task: t.ID, Session: t.Session})
+	s.goaTellLine(goaLine{Text: stallLine(t, line, text), Task: t.ID, Session: t.Session, Stall: true})
+}
+
+// stallReportSlack is how long before its screen went still a report still tells of
+// the turn that left it so: the report's own output shows after it.
+const stallReportSlack = 2 * time.Minute
+
+// stallReported says task t's session reported how its turn ended since it last moved,
+// or a report of it waits for GOA: a task that said it is done isn't stalled, though the
+// board says working until GOA settles it.
+func (s *Server) stallReported(t proto.GOATask, f *stallFollow) bool {
+	if t.Outcome != "" && time.UnixMilli(t.ReportAt).After(f.since.Add(-stallReportSlack)) {
+		return true
+	}
+	return s.goaWaits(t.ID, func(l goaLine) bool { return l.Turn != "" })
 }
 
 // stallMark moves task id from one status to another, unless something else
