@@ -2,7 +2,7 @@
 
 Each version's section is also what the app's update dialog shows.
 
-## 0.8.0
+## 0.7.3
 
 Saved hosts connect when the app starts, GOD of Agents on OpenCode now hears its workers, and GOD of Agents works on Windows: changing its agent takes, and workers' reports reach it.
 
