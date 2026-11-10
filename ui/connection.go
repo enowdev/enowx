@@ -70,7 +70,11 @@ func (a *App) connect(h hosts.Host) {
 	gen := a.gen
 	a.host = h
 	a.connectByApp = false // the timer and the app's start say so after
-	a.syncWatches()        // the host left is watched now, this one shown
+	if a.opened == nil {
+		a.opened = map[string]bool{}
+	}
+	a.opened[h.ID] = true
+	a.syncWatches() // the host left is watched now, this one shown
 	a.connecting, a.connErr, a.connFail, a.status, a.connectLink = "Connecting to "+h.Name+"…", "", nil, "", ""
 	if h.ID == hosts.LocalID {
 		a.connecting = "Starting…"

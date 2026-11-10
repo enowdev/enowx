@@ -58,6 +58,15 @@ On Windows a session's processes are told by `ENOWX_SESSION` in their environmen
 
 enowX keeps its state in `~/.enowx-app` (`transport.HomeName`), on this device and on servers; `ENOWX_HOME` names another (`make dev` uses `~/.enowx-dev`). Its command line is `enowx-app`, linked at `~/.local/bin/enowx-app`. Before, both were `~/.enowx` and `enowx`, which another app uses too: the first start of a newer app or daemon stops the daemon there and moves enowX's own files across (hosts, projects, sessions and their history, worktrees, settings), repairing git's links to the worktrees, and leaves the rest of `~/.enowx` alone.
 
+## Every saved host, from the app's start
+
+The app connects to every saved host as it starts, in the background, while it shows the one it was on (`ui/watch.go`): each over a connection of its own, at once, so its sessions list under **On other hosts** as soon as it answers, without opening it. Opening one of those sessions connects there.
+
+- **Nothing waits on it.** Each host connects on its own goroutine, and one that hasn't answered in 2 minutes (an install of the daemon on a slow link included) counts as offline. The app's start and the host shown never wait for them.
+- **Quietly.** A host that is down shows "offline · retrying" in the Hosts list, with no dialog; it is tried again after 15 seconds, then twice as long each time up to 5 minutes, and at once when the window comes back into sight or the machine wakes from sleep (its wall clock then jumps ahead of its monotonic one).
+- **Never asking.** What would ask the user waits until they open the host: a password not saved, a key's passphrase, a server key not trusted yet, whom to run as, a browser check (Tailscale SSH). The host shows "connect to sign in". A password saved in the keychain is read, once per run; on macOS the system may ask once to allow that, and a refused or missing one isn't asked for again that run.
+- **Connect at start**, in Hosts › ⋯ › Edit…, is on by default. Off, the host connects only once the user opens it, and is followed in the background from then on until the app quits (`hosts.Host.NoStartConnect` in `hosts.json`).
+
 ## Far and flaky connections
 
 What makes a far server feel close, built in rather than through mosh (which serves one shell over UDP, and needs `mosh-server` and an open port on the server):

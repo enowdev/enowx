@@ -90,17 +90,19 @@ type hostWatch struct {
 var errNeedsYou = errors.New("needs you")
 
 // syncWatches watches every host but the one shown, and stops watching
-// those gone from the list.
+// those gone from the list. From the app's start, so every host's sessions
+// list without opening it, save one set not to connect at start
+// (hosts.Host.NoStartConnect) until the user opens it.
 func (a *App) syncWatches() {
-	if a.win == nil {
-		return
+	if a.win == nil && a.watchDial == nil {
+		return // no window to show them in, nor a test's connections
 	}
 	if a.watches == nil {
 		a.watches = map[string]*hostWatch{}
 	}
 	want := map[string]hosts.Host{}
 	for _, h := range a.allHosts() {
-		if h.ID != a.host.ID {
+		if h.ID != a.host.ID && (!h.NoStartConnect || a.opened[h.ID]) {
 			want[h.ID] = h
 		}
 	}
@@ -181,12 +183,49 @@ func (w *hostWatch) pause(wait *retryWait) bool {
 	return true
 }
 
-// dialWatch connects w's connection.
+// watchConnectMost is how long a watch's connecting may take, an install of the
+// daemon on a slow link included, before it counts as offline and is tried later.
+var watchConnectMost = 2 * time.Minute
+
+// errWatchStopped ends a watch's connecting as the watch stops.
+var errWatchStopped = errors.New("stopped")
+
+// dialWatch connects w's connection, in watchConnectMost at most: a host that
+// doesn't answer holds no other, each watch connecting on its own goroutine.
 func (a *App) dialWatch(w *hostWatch) (*client.Client, error) {
-	if a.watchDial != nil {
-		return a.watchDial(w.host)
+	type dialed struct {
+		cl  *client.Client
+		err error
 	}
-	return hostconn.Connect(w.host, a.watchOptions(w))
+	done := make(chan dialed, 1)
+	go func() {
+		var d dialed
+		if a.watchDial != nil {
+			d.cl, d.err = a.watchDial(w.host)
+		} else {
+			d.cl, d.err = hostconn.Connect(w.host, a.watchOptions(w))
+		}
+		done <- d
+	}()
+	late := func() { // what comes after giving up is closed
+		go func() {
+			if d := <-done; d.cl != nil {
+				d.cl.Close()
+			}
+		}()
+	}
+	timer := time.NewTimer(watchConnectMost)
+	defer timer.Stop()
+	select {
+	case d := <-done:
+		return d.cl, d.err
+	case <-timer.C:
+		late()
+		return nil, fmt.Errorf("no answer in %s", watchConnectMost)
+	case <-w.stop:
+		late()
+		return nil, errWatchStopped
+	}
 }
 
 // retryNow has w try its host now, not when its wait ends.
@@ -254,14 +293,46 @@ func (a *App) poll(w *hostWatch, cl *client.Client) {
 	}
 }
 
-// pokeWatches has every watch ask now: the window is back in sight. It runs on the main thread.
+// pokeWatches has every watch ask now, and one waiting to try again try now: the
+// window is back in sight, or the machine woke. It runs on the main thread.
 func (a *App) pokeWatches() {
 	for _, w := range a.watches {
 		select {
 		case w.poke <- struct{}{}:
 		default:
 		}
+		if w.status.state != hostOnline && w.status.state != hostNeedsYou {
+			w.retryNow()
+		}
 	}
+}
+
+// wakeEvery is how often the app looks whether the machine slept: its wall
+// clock then moved on further than its monotonic clock, which sleep stops.
+const wakeEvery = 30 * time.Second
+
+// watchWakes pokes the watches each time the machine wakes from sleep, when
+// connections dropped and networks changed, until stop.
+func (a *App) watchWakes(stop <-chan struct{}) {
+	tick := time.NewTicker(wakeEvery)
+	defer tick.Stop()
+	last := time.Now()
+	for {
+		select {
+		case <-stop:
+			return
+		case now := <-tick.C:
+			if slept(last, now) {
+				a.onMain(a.pokeWatches)
+			}
+			last = now
+		}
+	}
+}
+
+// slept says the machine slept between two readings of the clock.
+func slept(before, now time.Time) bool {
+	return now.Round(0).Sub(before.Round(0))-now.Sub(before) > wakeEvery
 }
 
 // watchOptions connect a watch without asking anything: a password only
@@ -420,7 +491,7 @@ func hostSummary(st hostStatus) string {
 	case hostConnecting:
 		return "checking…"
 	}
-	return "offline"
+	return "offline · retrying"
 }
 
 // hostUsageTip is a host's CPU, memory and disk in words.

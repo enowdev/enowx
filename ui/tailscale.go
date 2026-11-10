@@ -48,7 +48,7 @@ func (a *App) tailnetNote() string {
 }
 
 func (a *App) openAddHost() {
-	a.addHost = addHostForm{open: true}
+	a.addHost = addHostForm{open: true, startConnect: true}
 	go a.loadPeers()
 }
 

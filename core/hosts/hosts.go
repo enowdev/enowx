@@ -44,6 +44,9 @@ type Host struct {
 	// Tailnet reaches the host through enowX's own tailnet device rather
 	// than this machine's network (transport/owntailnet).
 	Tailnet bool `json:"tailnet,omitempty"`
+	// NoStartConnect leaves the host unconnected when the app starts, until the
+	// user opens it; by default every saved host connects in the background.
+	NoStartConnect bool `json:"noStartConnect,omitempty"`
 }
 
 // KindDevice marks a host that is one of the user's computers.

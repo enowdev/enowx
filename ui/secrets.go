@@ -38,19 +38,31 @@ func (a *App) savePassword(h hosts.Host, password string) {
 // asks the user to unlock the keychain, so it runs off the main thread.
 func (a *App) password(h hosts.Host) (string, error) { return a.readPassword(h) }
 
-// watchPassword is password for a host's watch, which asks the user
-// nothing: it never reads the keychain, whose prompt that can bring up,
-// and has the password once a connection read it this run.
+// watchPassword is password for a host's watch, which never asks the user to type
+// one: the one saved in the keychain, read once per run, so a host signed in to by
+// password connects at start like any other. One the keychain doesn't give (none
+// saved, or the system's prompt refused) waits until the user opens the host.
 func (a *App) watchPassword(h hosts.Host) (string, error) {
 	if pw, ok := a.passwordsSnapshot()[h.ID]; ok {
 		return pw, nil
 	}
 	a.keychainMu.Lock()
-	defer a.keychainMu.Unlock()
-	if pw, ok := a.keychainRead[h.ID]; ok {
-		return pw, nil
+	missed := a.keychainMissed[h.ID]
+	a.keychainMu.Unlock()
+	if missed {
+		return "", errNeedsYou
 	}
-	return "", errNeedsYou
+	pw, err := a.readPassword(h)
+	if err != nil {
+		a.keychainMu.Lock()
+		if a.keychainMissed == nil {
+			a.keychainMissed = map[string]bool{}
+		}
+		a.keychainMissed[h.ID] = true
+		a.keychainMu.Unlock()
+		return "", errNeedsYou
+	}
+	return pw, nil
 }
 
 // readPassword returns h's password from memory, else the keychain: read
