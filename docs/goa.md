@@ -114,7 +114,7 @@ What the session doesn't say, enowX says for it: its process exiting or crashing
 
 A task for a session asleep brings it back on its conversation first, hibernated or ended, once, whoever gets there first; one queued goes in when it is back. What can't come back (a plain shell) fails at once, with that said, on the board and to GOA, as does a wake that fails.
 
-A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hibernated or stopped and over a daemon's restart, put back if typing it fails, the newest 200 kept. Only a stall line of a task since settled is dropped, as moot; a report isn't. With no GOA on the host at all there is no one to tell.
+A line stays until it has gone in: kept in `goa-tell.json` while GOA is busy, hibernated or stopped and over a daemon's restart, put back if typing it fails, the newest 200 kept. Of a task since settled, a line only saying to look (a stall, a turn's end, what it asks) is dropped, as moot; a report isn't: it goes all the same, saying the task is settled already. With no GOA on the host at all there is no one to tell.
 
 Sent something again, a task whose turn had ended is at work again, so a screen with no hook can report the next turn too.
 

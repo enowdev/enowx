@@ -346,7 +346,13 @@ type goaLine struct {
 	Closed bool `json:"closed,omitempty"`
 	// HoldUntil keeps a report back for its turn's end to join it.
 	HoldUntil time.Time `json:"holdUntil,omitzero"`
+	// Report: it holds what the session reported, which goes even once its task is
+	// settled, said to be so: a report never goes without a word.
+	Report bool `json:"report,omitempty"`
 }
+
+// goaSettledNote follows a report whose task was settled before GOA took it.
+const goaSettledNote = " (Its task is settled already: nothing to settle, only to read.)"
 
 // goaTellMax bounds what waits for a GOA that never comes back, the oldest going.
 const goaTellMax = 200
@@ -444,6 +450,9 @@ func (s *Server) goaLinesToSay() []goaLine {
 			held[l.Session] = true
 			s.goa.tell = append(s.goa.tell, l)
 		case l.Task == "" || !s.goa.board.IsSettled(l.Task):
+			out = append(out, l)
+		case l.Report:
+			l.Text += goaSettledNote
 			out = append(out, l)
 		}
 	}

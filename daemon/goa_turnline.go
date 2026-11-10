@@ -34,12 +34,13 @@ func releaseHeld(lines []goaLine, session string) {
 // goaTellReport tells of a report of session info, as line: joined to its turn's end if
 // that waits for GOA, else held for it if the session is at work.
 func (s *Server) goaTellReport(info proto.SessionInfo, line goaLine) {
-	line.Turn = goaLineReport
+	line.Turn, line.Report = goaLineReport, true
 	s.goa.mu.Lock()
 	i := s.goaOpenLine(line, goaLineTurn)
 	if i >= 0 {
 		said := s.goa.tell[i].Text
 		s.goa.tell[i].Text, s.goa.tell[i].Turn, s.goa.tell[i].Closed = line.Text+lastMessageOf(said), goaLineTurn, true
+		s.goa.tell[i].Report = true
 	}
 	s.goa.mu.Unlock()
 	if i >= 0 {
