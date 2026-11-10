@@ -303,8 +303,29 @@ func splitWrappedRule(line string) []string {
 	if utf8.RuneCountInString(rule) < ruleRunMin {
 		return []string{line}
 	}
+	// A rule may hold a title, set off by spaces ("──── name ──"), as Claude Code's above
+	// its composer does once the conversation is named: the rule ends with its last run.
+	if title, after, ok := ruleTitle(rest); ok {
+		rule += title
+		rest = after
+	}
 	if rest = strings.TrimSpace(rest); rest == "" {
 		return []string{line}
 	}
 	return []string{rule, rest}
+}
+
+// ruleTitle splits what follows a rule's first run into the title in it and its closing
+// run, and what comes after the rule. A draft's dashes aren't a title: what follows a
+// rule's run with no space, as the composer's mark does, never is.
+func ruleTitle(rest string) (title, after string, ok bool) {
+	if !strings.HasPrefix(rest, " ") {
+		return "", "", false
+	}
+	i := strings.IndexAny(rest, ruleChars)
+	if i < 0 || !strings.HasSuffix(rest[:i], " ") {
+		return "", "", false
+	}
+	after = strings.TrimLeft(rest[i:], ruleChars)
+	return rest[:len(rest)-len(after)], after, true
 }

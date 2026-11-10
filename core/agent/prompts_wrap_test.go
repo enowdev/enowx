@@ -34,6 +34,25 @@ func TestPromptEmptyUnderARuleWrappedOntoIt(t *testing.T) {
 	}
 }
 
+// Once Claude Code names its conversation, the rule above its composer holds the name, and
+// on Windows the composer joins that rule as before. Read as a draft, it kept every line for
+// GOD of Agents waiting from the moment its conversation got a name.
+func TestPromptEmptyUnderANamedRuleWrappedOntoIt(t *testing.T) {
+	screen := func(draft string) string {
+		return "✻ Worked for 32s · done 7:20 AM\n\n" +
+			strings.Repeat("─", 90) + " Akses sesi di aws-vps ─❯ " + draft + "\n" +
+			strings.Repeat("─", 77) + "   ~\\.enowx-app\\goa  ⎇ no git\n" +
+			"Opus 5.5  Ctx Used: 59.0%\n" +
+			"  ⏵⏵ bypass permissions on (shift+tab to cycle)\n"
+	}
+	if !PromptEmpty(screen("")) {
+		t.Error("an empty composer under a named rule reads as holding a draft")
+	}
+	if PromptEmpty(screen("lanjutkan")) {
+		t.Error("a draft under a named rule reads as an empty composer")
+	}
+}
+
 // A rule's run is cut from what follows it, and nothing else is: a line that only starts
 // with a dash or two, as a turn's time drawn between rules, stays whole.
 func TestSplitWrappedRule(t *testing.T) {
@@ -48,6 +67,10 @@ func TestSplitWrappedRule(t *testing.T) {
 		{"─ Worked for 1m 03s ─", []string{"─ Worked for 1m 03s ─"}},
 		{"──── note", []string{"──── note"}},
 		{"❯ hello", []string{"❯ hello"}},
+		{rule + " Akses sesi ──❯ ", []string{rule + " Akses sesi ──", "❯"}},
+		{rule + " Akses sesi ──❯ draft", []string{rule + " Akses sesi ──", "❯ draft"}},
+		{rule + " Akses sesi ──", []string{rule + " Akses sesi ──"}},
+		{rule + "❯ a ── b", []string{rule, "❯ a ── b"}},
 	}
 	for _, c := range cases {
 		if got := splitWrappedRule(c.line); strings.Join(got, "|") != strings.Join(c.want, "|") {
