@@ -22,7 +22,7 @@ const (
 
 // Button is a capsule with its label, an optional icon and shortcut hint.
 func Button(c *ui.Context, kind ButtonKind, svg *ui.SVG, label, hint string) ui.Element {
-	b := ui.ButtonBase(c).Gap(theme.S1).PaddingX(theme.S3).Height(theme.ControlHeight).Radius(theme.RadiusFull).
+	b := ui.ButtonBase(c).Gap(theme.S1).PaddingX(theme.S3).Height(theme.ControlHeight).Radius(theme.RadiusControl).
 		Cursor(ui.CursorPointer).Label(label).Shrink(0)
 	hover := b.Hovered() && !b.IsDisabled()
 	weight := 400
@@ -46,6 +46,9 @@ func Button(c *ui.Context, kind ButtonKind, svg *ui.SVG, label, hint string) ui.
 			}
 		}
 		b.Background(QuickTint(b, "bg", bg)).TextColor(theme.Text)
+		if theme.Rule > 0 {
+			b.InsetShadow(0, 0, 0, theme.Rule, theme.Border)
+		}
 	case Danger:
 		bg := theme.Fade(theme.Error, 0.16)
 		if hover {
@@ -105,21 +108,25 @@ func IconButton(c *ui.Context, svg *ui.SVG, label string, on bool) ui.Element {
 func Well(e ui.Element, focused bool) ui.Element {
 	Edge(e.Background(theme.Sunken))
 	if focused {
-		e.Border(2, theme.Now)
+		if theme.CurrentStyle().ID == "windows-11" {
+			e.Border(1, theme.Border).InsetShadow(0, -2, 0, 0, theme.Now)
+		} else {
+			e.Border(2, theme.Now)
+		}
 	}
 	return e
 }
 
 // Input is a text input: a well as a capsule.
 func Input(c *ui.Context, value *string, placeholder string) ui.Element {
-	in := ui.TextInput(c, value).Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusFull).
+	in := ui.TextInput(c, value).Height(theme.ControlHeight).PaddingX(theme.S3).Radius(theme.RadiusControl).
 		FontSize(theme.TextUI).Placeholder(placeholder).Label(placeholder)
 	return Well(in, in.Focused())
 }
 
 // SearchField is a filter input with a search icon in front.
 func SearchField(c *ui.Context, value *string, placeholder string, svg *ui.SVG) {
-	box := ui.Row(c).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull)
+	box := ui.Row(c).FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl)
 	Well(box, box.FocusWithin()).Children(func() {
 		ui.Icon(c, svg).FontSize(14).TextColor(theme.TextSoft)
 		ui.TextInputBase(c, value).Grow(1).FontSize(theme.TextUI).Placeholder(placeholder).Label(placeholder)
@@ -128,7 +135,7 @@ func SearchField(c *ui.Context, value *string, placeholder string, svg *ui.SVG) 
 
 // Trigger styles the face of a drop-down, open while its pop-up shows.
 func Trigger(t ui.Element, open bool) ui.Element {
-	t.FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusFull).Cursor(ui.CursorPointer)
+	t.FillWidth().Height(theme.ControlHeight).PaddingX(theme.S3).Gap(theme.S2).Radius(theme.RadiusControl).Cursor(ui.CursorPointer)
 	Well(t, open)
 	if t.Hovered() {
 		t.Background(theme.Fade(theme.TextStrong, 0.1))

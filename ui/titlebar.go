@@ -33,13 +33,21 @@ func (a *App) titleBarWith(c *ui.Context, actions func()) {
 		row.Background(theme.Panel)
 		gap = 0
 	}
+	isWindows := a.isWindowsControlStyle()
 	row.Gap(gap).Children(func() {
-		ui.Row(c).Height(theme.BarHeight).PaddingX(theme.S3).Shrink(0).Children(func() { a.windowButtons(c) })
+		if !isWindows {
+			ui.Row(c).Height(theme.BarHeight).PaddingX(theme.S3).Shrink(0).Children(func() { a.windowButtons(c) })
+		} else {
+			ui.Box(c).Width(theme.S2)
+		}
 		a.contextCapsule(c)
 		a.pagesCapsule(c)
 		a.commandButton(c)
 		ui.Spacer(c)
 		capsule(c).Shrink(0).Gap(theme.S1).PaddingX(theme.S1).Children(actions)
+		if isWindows {
+			capsule(c).Shrink(0).Gap(0).PaddingX(0).Clip().Children(func() { a.windowsWindowButtons(c) })
+		}
 	})
 }
 

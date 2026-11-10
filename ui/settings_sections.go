@@ -546,16 +546,45 @@ func (a *App) appSection(c *ui.Context) {
 				a.commandLineCard(c)
 			})
 			widget.GridCard(c.Key("keys")).Grow(7).Basis(0).Children(func() {
-				list := shortcutList()
 				widget.CardTitle(c, nil, "Keyboard shortcuts", func() {
-					ui.Text(c, strconv.Itoa(len(list))).FontSize(theme.TextLabel).TextColor(theme.TextSoft)
+					if a.hasCustomShortcuts() {
+						if widget.GhostButton(c.Key("reset-shortcuts-top"), "Reset").Clicked() {
+							a.resetAllShortcuts()
+						}
+					}
+					if widget.GhostButton(c.Key("customize-shortcuts"), "Customize…").Clicked() {
+						a.openShortcutSheet()
+					}
 				})
+				masterOn := !a.state.ShortcutsOff
+				if switchRowKey(c, "app-master-shortcuts", &masterOn, "Enable keyboard shortcuts", "Turn off to disable all application shortcuts") {
+					a.state.ShortcutsOff = !masterOn
+					a.saveState()
+				}
 				ui.Column(c).FillWidth().MinWidth(0).Children(func() {
-					for _, s := range list {
+					for _, def := range GlobalShortcuts {
+						cfg := a.shortcutConfig(def.ID)
+						mods, key, disabled := a.effectiveShortcut(def.ID)
+						globallyOff := a.state.ShortcutsOff
+						keyStr := FormatKey(mods, key)
+						if keyStr == "" || disabled || globallyOff {
+							keyStr = "Off"
+						}
+
 						ui.Box(c).Height(theme.Rule).FillWidth().Shrink(0).Background(theme.Border)
-						ui.Row(c.Key(s[0])).FillWidth().Height(28).Shrink(0).Gap(theme.S3).Children(func() {
-							ui.Row(c).Grow(1).MinWidth(0).Children(func() { widget.Running(c, s[1], widget.RunStyle{}) })
-							ui.Text(c, s[0]).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
+						defID := def.ID
+						row := ui.Row(c.Key(string(defID))).FillWidth().Height(28).Shrink(0).Gap(theme.S3).Cursor(ui.CursorPointer)
+						if row.Clicked() {
+							a.openShortcutSheet(defID)
+						}
+						row.Children(func() {
+							ui.Row(c).Grow(1).MinWidth(0).Gap(theme.S2).AlignItems(ui.Center).Children(func() {
+								widget.Running(c, def.Name, widget.RunStyle{})
+								if cfg.Custom {
+									widget.Chip(c, "Custom", ui.Color{})
+								}
+							})
+							ui.Text(c, keyStr).FontSize(theme.TextLabel).TextColor(theme.TextSoft).SingleLine().Shrink(0)
 						})
 					}
 				})

@@ -75,6 +75,7 @@ type App struct {
 	watchdog        *watchdog.Watch // the main thread's, once the window is open
 	diag            *diag.Log       // what happened, for later (diagnostics.go); nil in tests
 	diagPage        string          // the page last logged
+	diagTheme       string          // the theme last logged
 	daemonBehind    *daemonBehind   // a daemon left at another version, to replace (daemon_behind.go)
 	replaceDaemon   string          // the host whose daemon the next connection replaces, asked for
 	sessionToasts   []*sessionToast // what notifications are about (sessiontoast.go)
@@ -242,16 +243,17 @@ type App struct {
 	// portOffers are ports sessions just opened, offered to open.
 	portOffers []portOffer
 	// conflicts are the conflict radar's last look, by project path.
-	conflicts  map[string][]proto.Conflict
-	budget     *budgetForm // setting a session's budget
-	agentLimit *agentsForm // setting the host's limit of agents at once
-	usage      usageview.Meter
-	usageShown bool          // the Resource usage page was shown last frame
-	tok        tokensState   // token usage: the Tokens tab, sessions' badges (tokens.go)
-	goa        goaApp        // GOD of Agents mode (goa.go)
-	blurred    bool          // the window isn't the focused one
-	unfocused  atomic.Bool   // the same, for goroutines
-	winCtl     windowControl // what the window buttons act on, when not win (tests)
+	conflicts     map[string][]proto.Conflict
+	budget        *budgetForm // setting a session's budget
+	agentLimit    *agentsForm // setting the host's limit of agents at once
+	shortcutsForm *shortcutDialogState
+	usage         usageview.Meter
+	usageShown    bool          // the Resource usage page was shown last frame
+	tok           tokensState   // token usage: the Tokens tab, sessions' badges (tokens.go)
+	goa           goaApp        // GOD of Agents mode (goa.go)
+	blurred       bool          // the window isn't the focused one
+	unfocused     atomic.Bool   // the same, for goroutines
+	winCtl        windowControl // what the window buttons act on, when not win (tests)
 	// retrying counts the tries to connect again to retryHost after its
 	// connection dropped; 0 when not retrying.
 	retrying  int
