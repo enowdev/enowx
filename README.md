@@ -252,7 +252,7 @@ enowX Cloud, opt-in, puts a team together around the same projects ([cloud.md](d
 
 - **Teams with GitHub sign-in**, owners, admins, members and viewers. An invite is a link that works in the browser too: someone without the app signs in and joins there, then downloads enowX and finds the team.
 - **A team's space:** its notes and canvases, its projects as Git links (cloned in one click, found when you have them already), its kit of skills, commands, subagents, pipelines, automations and templates, and each project's rules for the agents.
-- **Shared hosts** over Tailscale: a member sees the sessions of a host shared with the team, watches one live, asks to take it over, or starts their own there with their own agent account, never the host owner's credentials.
+- **Shared hosts** through the cloud's relay, end to end encrypted, no Tailscale needed: a member sees the sessions of a host shared with the team, watches one live, asks to take it over, or starts their own there with their own agent account, never the host owner's credentials.
 - **Team chat** in the side panel, with `@` to mention members, notes, canvases, projects and files; messages edit and delete.
 - **End-to-end encrypted:** what a team shares is sealed with the team's key on its members' devices, so the cloud holds ciphertext only; credentials never go to it. An audit log and a recovery key for the team's keys come with it.
 

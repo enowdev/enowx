@@ -61,6 +61,7 @@ func (s *Server) issueTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t, err := s.db.IssueTicket(r.Context(), r.PathValue("team"), me.Account.ID, me.Device.ID, p.Host)
+	t.Relay = s.relayURL()
 	s.answer(w, t, err)
 }
 

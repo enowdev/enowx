@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/enowx/enowx/cloud/api"
+	"github.com/enowx/enowx/cloud/relay"
 	"github.com/enowx/enowx/core/projectctx"
 	"github.com/enowx/enowx/core/tailnet"
 	"github.com/enowx/enowx/proto"
@@ -22,8 +23,9 @@ import (
 
 // A host shared with its teams (docs/cloud.md, Hosts and sessions): the
 // projects its user picks for each team, in share.json. While any is
-// shared, the team listener serves the teams' members on the host's
-// Tailscale address, and the host announces itself in each team's space
+// shared, the team listener serves the teams' members through the cloud's
+// relay (and the host's Tailscale address, when it has one), and the host
+// announces itself in each team's space
 // (hosts/<its device>.json, sealed and synced with it), so the members'
 // hosts list it. A visitor sees the shared projects of their team alone.
 
@@ -33,12 +35,14 @@ var listenTeam func(*Server, net.Listener) error
 
 func init() { listenTeam = (*Server).ListenTeam }
 
-// hostSharing is the share and the team listener; its mutex guards both.
+// hostSharing is the share and the team listener; its mutex guards all.
 type hostSharing struct {
-	mu   sync.Mutex
-	ln   net.Listener
-	addr string
-	err  string
+	mu    sync.Mutex
+	ln    net.Listener // the team listener: the relay's and Tailscale's (teamrelay.go)
+	relay *relay.Host  // nil without a cloud signed in to
+	key   string       // the public key members' channels open to
+	addr  string       // the Tailscale address, "" without one
+	err   string
 }
 
 type hostShareConfig struct {
@@ -81,6 +85,13 @@ func (s *Server) hostShare() proto.HostShare {
 	}
 	s.share.mu.Lock()
 	out.Addr, out.Err = s.share.addr, s.share.err
+	if s.share.relay != nil {
+		up, why := s.share.relay.Status()
+		out.Relay = up
+		if !up && why != "" && out.Err == "" {
+			out.Err = "the relay: " + why
+		}
+	}
 	s.share.mu.Unlock()
 	return out
 }
@@ -140,39 +151,52 @@ func (s *Server) startSharing() {
 	s.share.mu.Lock()
 	switch {
 	case shared && s.share.ln == nil:
+		fan := newFanIn()
+		var why []string
+		h, key, err := s.startRelay()
+		if err != nil {
+			why = append(why, "the relay: "+err.Error())
+		} else if h != nil {
+			fan.add(h)
+		}
+		// Tailscale too, when the host has it: members of an older enowX
+		// know no other way.
 		addr := os.Getenv(proto.EnvTeamListen)
 		if addr == "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			ip, err := tailnet.SelfIP(ctx)
-			cancel()
-			if err != nil || ip == "" {
-				s.share.err = "members reach a shared host over Tailscale: " + errText(err, "this host has no Tailscale address")
-				break
+			if ip, err := tailnet.SelfIP(ctx); err == nil && ip != "" {
+				addr = net.JoinHostPort(ip, strconv.Itoa(proto.TeamPort))
 			}
-			addr = net.JoinHostPort(ip, strconv.Itoa(proto.TeamPort))
+			cancel()
 		}
-		ln, err := net.Listen("tcp", addr)
-		if err != nil {
-			s.share.err = "the team listener: " + err.Error()
+		var ln net.Listener
+		if addr != "" {
+			if ln, err = net.Listen("tcp", addr); err != nil {
+				why = append(why, "the team listener: "+err.Error())
+			} else {
+				fan.add(ln)
+			}
+		}
+		if h == nil && ln == nil {
+			if len(why) == 0 {
+				why = append(why, "sign this host in to the team's cloud: members reach it through the cloud's relay")
+			}
+			s.share.err = strings.Join(why, "; ")
 			break
 		}
-		s.share.ln, s.share.addr, s.share.err = ln, ln.Addr().String(), ""
-		go listenTeam(s, ln)
+		s.share.ln, s.share.relay, s.share.key, s.share.err = fan, h, key, strings.Join(why, "; ")
+		if ln != nil {
+			s.share.addr = ln.Addr().String()
+		}
+		go listenTeam(s, fan)
 	case !shared && s.share.ln != nil:
 		s.share.ln.Close()
-		s.share.ln, s.share.addr, s.share.err = nil, "", ""
+		s.share.ln, s.share.relay, s.share.key, s.share.addr, s.share.err = nil, nil, "", "", ""
 	case !shared:
 		s.share.err = ""
 	}
 	s.share.mu.Unlock()
 	s.announceHost()
-}
-
-func errText(err error, none string) string {
-	if err != nil {
-		return err.Error()
-	}
-	return none
 }
 
 // stopSharing closes the team listener, as the daemon stops.
@@ -181,8 +205,8 @@ func (s *Server) stopSharing() {
 	defer s.share.mu.Unlock()
 	if s.share.ln != nil {
 		s.share.ln.Close()
-		s.share.ln = nil
 	}
+	s.share.ln, s.share.relay, s.share.key, s.share.addr = nil, nil, "", ""
 }
 
 // announceHost writes, or takes back, the host's entry in each of its
@@ -194,18 +218,18 @@ func (s *Server) announceHost() {
 	}
 	f := s.readShare()
 	s.share.mu.Lock()
-	addr := s.share.addr
+	addr, key := s.share.addr, s.share.key
 	s.share.mu.Unlock()
 	for _, sp := range s.spaces() {
 		file := filepath.Join(s.teamsDir(), sp.Team, "hosts", st.DeviceID+".json")
 		list := f.Teams[sp.Team]
-		if len(list) == 0 || addr == "" {
+		if len(list) == 0 || addr == "" && key == "" {
 			if os.Remove(file) == nil {
 				s.teamSync.kick()
 			}
 			continue
 		}
-		h := proto.TeamHost{Team: sp.Team, Device: st.DeviceID, Name: s.userdata.Name, Owner: st.Account, Addr: addr, Projects: []proto.TeamHostProject{}}
+		h := proto.TeamHost{Team: sp.Team, Device: st.DeviceID, Name: s.userdata.Name, Owner: st.Account, Addr: addr, Key: key, Projects: []proto.TeamHostProject{}}
 		for _, path := range list {
 			h.Projects = append(h.Projects, proto.TeamHostProject{Name: filepath.Base(path), Path: path, Ref: s.remoteRef(path)})
 		}

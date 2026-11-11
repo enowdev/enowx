@@ -83,3 +83,26 @@ func (s *DB) RedeemTicket(ctx context.Context, ticket, hostDevice string) (api.V
 	tx.ExecContext(ctx, `DELETE FROM host_tickets WHERE expires < $1`, stamp(now().Add(-time.Hour)))
 	return v, tx.Commit()
 }
+
+// PeekTicket says which host and team ticket leads to, without using it:
+// the relay's check before it pairs a member with a host. It is no good
+// used, past its time, or of one no longer in the team.
+func (s *DB) PeekTicket(ctx context.Context, ticket string) (teamID, accountID, hostDevice string, err error) {
+	var expires string
+	var used int
+	err = s.QueryRowContext(ctx, `SELECT team_id, account_id, host_device, expires, used FROM host_tickets WHERE hash = $1`, hashToken(ticket)).
+		Scan(&teamID, &accountID, &hostDevice, &expires, &used)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", "", ErrTicket
+	}
+	if err != nil {
+		return "", "", "", err
+	}
+	if used != 0 || time.Now().After(parseStamp(expires)) {
+		return "", "", "", ErrTicket
+	}
+	if _, err := role(ctx, s.DB, teamID, accountID); err != nil {
+		return "", "", "", ErrTicket
+	}
+	return teamID, accountID, hostDevice, nil
+}

@@ -1430,6 +1430,7 @@ field HostSessions.hostName string
 field HostSessions.sessions []SessionInfo
 field HostShare.addr string
 field HostShare.err string
+field HostShare.relay bool
 field HostShare.teams []HostShareTeam
 field HostShareTeam.allowSessions *bool
 field HostShareTeam.projects []string
@@ -2492,6 +2493,7 @@ field TeamChatParams.last int
 field TeamChatParams.team string
 field TeamHost.addr string
 field TeamHost.device string
+field TeamHost.key string
 field TeamHost.name string
 field TeamHost.owner string
 field TeamHost.projects []TeamHostProject

@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/andybalholm/brotli v1.2.7
 	github.com/anthropics/anthropic-sdk-go/v2 v2.5.0
+	github.com/coder/websocket v1.8.15
 	github.com/egoist/mygo v0.6.2
 	github.com/gen2brain/webp v0.6.4
 	github.com/jackc/pgx/v5 v5.11.0
@@ -49,7 +50,6 @@ require (
 	github.com/bradfitz/reco v0.0.0-20260929154613-b883fbd17e3f // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/coder/websocket v1.8.15 // indirect
 	github.com/coreos/go-iptables v0.8.0 // indirect
 	github.com/creachadair/msync v0.10.1 // indirect
 	github.com/creack/pty v1.1.24 // indirect

@@ -4,8 +4,9 @@ import "time"
 
 // A host shared with a team (docs/cloud.md, Hosts and sessions): its user
 // picks which of its projects each team sees. The host then serves the
-// team's members on its team listener, on its Tailscale address, and
-// announces itself in the team's space; the members' hosts list it.
+// team's members on its team listener, through the cloud's relay (and its
+// Tailscale address when it has one), and announces itself in the team's
+// space; the members' hosts list it.
 const (
 	MethodHostShare    = "host.share"     // → HostShare (the host's own connections)
 	MethodHostShareSet = "host.share.set" // HostShareTeam (no Projects: unshared) → HostShare
@@ -31,6 +32,9 @@ type HostShare struct {
 	// why it doesn't when something is shared.
 	Addr string `json:"addr,omitempty"`
 	Err  string `json:"err,omitempty"`
+	// Relay says the host is connected to its cloud's relay, through which
+	// members reach it with no address of its own.
+	Relay bool `json:"relay,omitempty"`
 }
 
 // HostShareTeam is the projects (their folders) the host shares with Team.
@@ -46,11 +50,14 @@ type HostShareTeam struct {
 
 // TeamHost is a host a member shares with a team, as its space says.
 type TeamHost struct {
-	Team     string            `json:"team"`
-	Device   string            `json:"device"` // the host's device in the cloud
-	Name     string            `json:"name"`
-	Owner    string            `json:"owner"` // the member sharing it
-	Addr     string            `json:"addr"`
+	Team   string `json:"team"`
+	Device string `json:"device"` // the host's device in the cloud
+	Name   string `json:"name"`
+	Owner  string `json:"owner"` // the member sharing it
+	Addr   string `json:"addr"`  // its Tailscale address, "" without one
+	// Key is the host's public key, which a member's channel through the
+	// cloud's relay opens to (cloud/relay); "" for a host of an older enowX.
+	Key      string            `json:"key,omitempty"`
 	Projects []TeamHostProject `json:"projects"`
 	Updated  time.Time         `json:"updated"`
 }
