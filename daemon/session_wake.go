@@ -77,7 +77,7 @@ func (w *sessionWakes) finish(id string, l *wakeLine, err error) {
 // nor a program enowX can't continue.
 func comesBack(meta session.Meta) bool {
 	preset, ok := agent.Find(meta.Agent)
-	return ok && len(preset.Continue) > 0 && meta.Relaunch
+	return ok && len(preset.Continue) > 0
 }
 
 // wakeThen runs send once session id's agent can take it, and says whether it had to

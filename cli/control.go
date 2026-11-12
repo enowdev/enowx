@@ -232,10 +232,32 @@ func (r runner) fork(args []string) error {
 }
 
 func (r runner) continueSession(args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: enowx-app continue SESSION [--host H]")
+	var ref string
+	if len(args) == 0 {
+		list, err := r.c.Sessions()
+		if err != nil {
+			return err
+		}
+		// Find latest exited or hibernated session to recover
+		for i := len(list) - 1; i >= 0; i-- {
+			if list[i].Exited || list[i].Hibernated {
+				ref = list[i].ID
+				break
+			}
+		}
+		if ref == "" {
+			return errors.New("continue: no exited or broken session found to continue")
+		}
+	} else if len(args) == 1 {
+		ref = strings.TrimSpace(args[0])
+		if ref == "" || ref == "null" || ref == "undefined" {
+			return errors.New("continue: session ID cannot be empty, null, or undefined")
+		}
+	} else {
+		return errors.New("usage: enowx-app continue [SESSION] [--host H]")
 	}
-	s, err := r.session(args[0])
+
+	s, err := r.session(ref)
 	if err != nil {
 		return err
 	}
@@ -247,7 +269,11 @@ func (r runner) continueSession(args []string) error {
 	default:
 		return fmt.Errorf("continue: %s is %s, not ended", s.ID, State(s))
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(r.out, "Continued session %s (%s)\n", s.ID, s.Agent)
+	return nil
 }
 
 func (r runner) rename(args []string) error {

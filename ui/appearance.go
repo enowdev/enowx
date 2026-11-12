@@ -2,6 +2,7 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -12,8 +13,30 @@ import (
 // applyTheme sets the palette the state names, in every view and
 // terminal at once.
 func (a *App) applyTheme() {
+	began := time.Now()
+	prevTheme := a.diagTheme
+	if prevTheme == "" {
+		prevTheme = "default"
+	}
+
 	theme.UseStyle(theme.StyleByID(a.state.UIStyle))
-	a.showPalette(a.state.palette(a.lightAppearance()))
+	pal := a.state.palette(a.lightAppearance())
+	a.showPalette(pal)
+
+	newTheme := pal.ID
+	if a.state.UIStyle != "" {
+		newTheme = a.state.UIStyle + ":" + pal.ID
+	}
+	tookMs := time.Since(began).Milliseconds()
+	if a.diag != nil {
+		a.diag.Event("theme_changed",
+			"previousTheme", prevTheme,
+			"newTheme", newTheme,
+			"isDarkMode", !a.lightAppearance(),
+			"resolutionTimeMs", tookMs,
+		)
+	}
+	a.diagTheme = newTheme
 }
 
 // showPalette has every view and terminal take p.
@@ -51,6 +74,7 @@ func (a *App) appearancePage(c *ui.Context) {
 					widget.Card(c).Children(func() { a.appearanceMode(c) })
 					widget.Card(c).Children(func() { a.accentPicker(c) })
 				})
+				widget.Card(c).Children(func() { a.windowControlStyleCard(c) })
 			})
 			widget.Card(c).Grow(5).Basis(0).Children(func() { a.themePreview(c) })
 		})

@@ -121,28 +121,29 @@ func (a *App) view(c *ui.Context) {
 	a.cloneDialog(c)
 	a.noteImportDialog(c)
 	a.noteExportDialog(c)
+	a.shortcutDialog(c)
 	a.confirmDialog(c) // last: what a dialog asks shows over it
 	a.saveState()
 }
 
 func (a *App) shortcuts(c *ui.Context) {
-	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyH) && a.page == "" {
+	if a.isShortcutTriggered(ShortcutHibernate, c) && a.page == "" {
 		if s, ok := a.sessionByID(a.selected); ok && canHibernate(s) {
 			a.hibernate(a.hibernateTargets(s))
 		}
 	}
-	if c.Shortcut(ui.Cmd, ui.KeyN) {
+	if a.isShortcutTriggered(ShortcutNewSession, c) {
 		if p, ok := a.currentProject(); ok {
 			a.openNewSession(p)
 		}
 	}
-	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyEnter) {
+	if a.isShortcutTriggered(ShortcutMaximize, c) {
 		a.toggleMaximized(a.selected)
 	}
-	if c.Shortcut(ui.Cmd, ui.KeyO) {
+	if a.isShortcutTriggered(ShortcutOpenFolder, c) {
 		a.openFolder()
 	}
-	if c.Shortcut(ui.Cmd, ui.KeyK) {
+	if a.isShortcutTriggered(ShortcutPalette, c) {
 		switch {
 		case a.page == pageNotes && !a.palette.open && a.notes.OpenJump():
 			// On a page of notes, it jumps to a section of it.
@@ -152,32 +153,32 @@ func (a *App) shortcuts(c *ui.Context) {
 			a.openPalette()
 		}
 	}
-	if c.Shortcut(ui.Cmd, ui.KeyP) {
+	if a.isShortcutTriggered(ShortcutQuickOpen, c) {
 		if a.quick.open {
 			a.quick.open = false
 		} else {
 			a.openQuickOpen()
 		}
 	}
-	if c.Shortcut(ui.Cmd, ui.KeyB) {
+	if a.isShortcutTriggered(ShortcutSidebar, c) {
 		a.state.RailWide = !a.state.RailWide
 	}
-	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyBracketRight) {
+	if a.isShortcutTriggered(ShortcutNextSession, c) {
 		a.stepSession(1)
 	}
-	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyBracketLeft) {
+	if a.isShortcutTriggered(ShortcutPrevSession, c) {
 		a.stepSession(-1)
 	}
-	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyL) {
+	if a.isShortcutTriggered(ShortcutSplitView, c) {
 		a.setSplit(!a.splitOn())
 	}
-	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyD) {
+	if a.isShortcutTriggered(ShortcutSidePanel, c) {
 		a.togglePanel()
 	}
-	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyP) {
+	if a.isShortcutTriggered(ShortcutBrowserTool, c) {
 		a.toggleTool(panelBrowser)
 	}
-	if c.Shortcut(ui.Cmd|ui.Shift, ui.KeyS) {
+	if a.isShortcutTriggered(ShortcutSessionsPanel, c) {
 		a.toggleSessionsPanel()
 	}
 }

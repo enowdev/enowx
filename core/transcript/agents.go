@@ -30,6 +30,7 @@ var readers = map[string]struct {
 	"claude-agent-teams": {claudeFound, NewClaudeReader, claudeID},
 	"codex":              {CodexFiles, NewCodexReader, codexID},
 	"omp":                {OMPFiles, NewOMPReader, OMPConversationID},
+	"antigravity":        {AntigravityFiles, NewAntigravityReader, AntigravityConversationID},
 	record.AgentID:       {PlatformFiles, NewPlatformReader, claudeID},
 }
 
