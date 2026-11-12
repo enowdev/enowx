@@ -225,5 +225,4 @@ func (h *Host) Close() error {
 // Addr is the relay's, as a listener's.
 func (h *Host) Addr() net.Addr { return Addr("relay") }
 
-
 var _ net.Listener = (*Host)(nil)

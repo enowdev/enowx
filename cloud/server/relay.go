@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-		"net/http"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +33,11 @@ type RelayLimits struct {
 	// BytesPerSecond is a team's rate, both ways together, all its
 	// connections together; Burst is how much may go at once above it.
 	BytesPerSecond, Burst int
+	// Ping is how often the relay pings the hosts' links and both sides of
+	// a pair: proxies on the way (Cloudflare's, after 100 seconds) cut a
+	// WebSocket that carries nothing, as a member watching a quiet
+	// terminal's would.
+	Ping time.Duration
 }
 
 const (
@@ -84,6 +89,9 @@ func (s *Server) relayLimits() RelayLimits {
 	if l.Burst <= 0 {
 		l.Burst = relayBurst
 	}
+	if l.Ping <= 0 {
+		l.Ping = relayPing
+	}
 	return l
 }
 
@@ -134,7 +142,7 @@ func (s *Server) relayHostConn(w http.ResponseWriter, r *http.Request) {
 		s.log.Info("relay host", "device", dev, "state", "gone")
 	}()
 	ctx := ws.CloseRead(r.Context()) // the host sends nothing on it
-	t := time.NewTicker(relayPing)
+	t := time.NewTicker(s.relayLimits().Ping)
 	defer t.Stop()
 	for {
 		select {
@@ -274,6 +282,7 @@ func (s *Server) relayConnect(w http.ResponseWriter, r *http.Request) {
 	defer stop()
 	m := websocket.NetConn(ctx, memberWS, websocket.MessageBinary)
 	h := websocket.NetConn(ctx, hostWS, websocket.MessageBinary)
+	go keepPinging(ctx, stop, limits.Ping, memberWS, hostWS)
 	var up, down int64
 	done := make(chan struct{}, 2)
 	go func() { up = s.relayCopy(h, m, ts); stop(); done <- struct{}{} }()
@@ -284,6 +293,33 @@ func (s *Server) relayConnect(w http.ResponseWriter, r *http.Request) {
 	<-done
 	// Who reached whom and how much: all the relay knows of a visit.
 	s.log.Info("relay visit", "team", team, "account", account, "host", host, "up", up, "down", down, "s", int(time.Since(call.start).Seconds()))
+}
+
+// keepPinging pings both sides of a pair until ctx ends, so a quiet one
+// isn't cut on the way; a side that doesn't answer ends the pair. Pings
+// carry nothing of the visit: its records stay sealed end to end.
+func keepPinging(ctx context.Context, stop func(), every time.Duration, sides ...*websocket.Conn) {
+	for _, ws := range sides {
+		// Each side apart: one slow to answer doesn't keep the other quiet.
+		go func() {
+			t := time.NewTicker(every)
+			defer t.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-t.C:
+				}
+				pctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+				err := ws.Ping(pctx)
+				cancel()
+				if err != nil {
+					stop()
+					return
+				}
+			}
+		}()
+	}
 }
 
 // relayTap sees what the relay passes, for tests.
