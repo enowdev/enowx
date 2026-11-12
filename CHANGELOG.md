@@ -2,6 +2,23 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.7.4
+
+Team members reach a shared host through enowX's cloud relay, end to end encrypted: no Tailscale needed on either side.
+
+- **Shared hosts through the relay** ([#61](https://github.com/enowdev/enowx/pull/61)). A host that shares projects with a team keeps a connection to the cloud's relay, and a member's app connects through it with the ticket the cloud gives them. Nothing needs to be open on the host, and neither side needs Tailscale.
+  - **End to end encrypted:** the host's key is announced in the team's sealed space, and the member's app opens a channel to that key alone (X25519, HKDF-SHA256, ChaCha20-Poly1305 records). The relay passes bytes it can't read; it sees who connects to which host, when, and how many bytes.
+  - **Same checks as before:** the host redeems each ticket itself, serves what the member's role allows, and asks the cloud again every 2 minutes, so a member removed is let go.
+  - **Limits:** each team has 32 connections at once and 4 MiB a second through the relay (bursts of 16 MiB), and an address 30 connections a minute.
+  - **Tailscale stays as a fallback:** a host with a Tailscale address still listens there for members on an older enowX, and the app tries the relay first. Errors no longer tell members to set up Tailscale.
+- **Quiet visits stay up** ([#62](https://github.com/enowdev/enowx/pull/62)). The relay pings both sides of each visit every 30 seconds, so a member watching a quiet terminal isn't cut by a proxy on the way (Cloudflare drops connections idle for about 100 seconds).
+
+### What has been tested
+
+- Tests for pairing, refused tickets (forged, a removed member's, reused), the team limit, the relay unable to read what passes, a host reconnecting, a quiet pair behind a proxy that cuts idle connections, and a member through the relay end to end, removed and dropped. CI on macOS, Windows and Linux.
+- **By hand, live:** a host on a Linux server, with no Tailscale address, shared a project with a team; a member on a Mac connected through the cloud's relay, watched a shell session, and the screen came through while the relay's bytes held none of it. A visit left quiet for 5 minutes through Cloudflare stayed up. One earlier run was cut after about 3 minutes when the host's connections dropped on the network side; the host reconnected on its own, but the member has to open the host again.
+- **Not tried by hand:** the app's own screens for a shared host (the test used the app's code from a small program), Windows, and members on an older enowX reaching a new host over Tailscale.
+
 ## 0.7.3
 
 Saved hosts connect when the app starts, GOD of Agents on OpenCode now hears its workers, and GOD of Agents works on Windows: changing its agent takes, and workers' reports reach it.
