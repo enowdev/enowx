@@ -44,6 +44,8 @@ type Config struct {
 	Contributor ContributorConfig
 	// Library is enowX UI's setup; nil or without a store, there's none.
 	Library *library.Config
+	// Relay is a team's share of the relay (relay.go).
+	Relay RelayLimits
 }
 
 // Server answers the cloud's API. Its handlers run on net/http's
@@ -65,6 +67,8 @@ type Server struct {
 	contributor *contributorRole
 	// library is enowX UI, nil when it's off.
 	library *library.Service
+	// relay pairs members with the hosts they visit (relay.go).
+	relay relay
 }
 
 // New is a server over db.
@@ -106,6 +110,9 @@ func New(cfg Config, db *store.DB, log *slog.Logger) *Server {
 	s.mux.HandleFunc("GET "+api.PathAudit, s.signedIn(s.audit))
 	s.mux.HandleFunc("POST "+api.PathHostTickets, s.signedIn(s.issueTicket))
 	s.mux.HandleFunc("POST "+api.PathTicketRedeem, s.signedIn(s.redeemTicket))
+	s.mux.HandleFunc("GET "+api.PathRelayHost, s.signedIn(s.relayHostConn))
+	s.mux.HandleFunc("GET "+api.PathRelayAccept, s.signedIn(s.relayAccept))
+	s.mux.HandleFunc("GET "+api.PathRelayConnect, s.relayConnect)
 	s.mux.HandleFunc("GET "+api.PathRecoveryChallenge, s.signedIn(s.recoveryChallenge))
 	s.mux.HandleFunc("POST "+api.PathRecovery, s.signedIn(s.setRecovery))
 	s.mux.HandleFunc("GET "+api.PathTeamRecovery, s.signedIn(s.recoveryKeys))
@@ -208,6 +215,9 @@ type statusWriter struct {
 	http.ResponseWriter
 	status int
 }
+
+// Unwrap lets the relay's WebSockets take the connection over.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (w *statusWriter) WriteHeader(code int) {
 	w.status = code

@@ -61,6 +61,13 @@ func run(log *slog.Logger) error {
 		LinkSecret:       env("ENOWX_CLOUD_CONTRIBUTOR_LINK_SECRET", ""),
 		Repo:             env("ENOWX_CLOUD_CONTRIBUTOR_REPO", ""),
 	}
+	// The relay's share for each team: connections at once, bytes a second
+	// and a burst above it; unset, the server's defaults.
+	cfg.Relay = server.RelayLimits{
+		Pairs:          envInt("ENOWX_CLOUD_RELAY_TEAM_CONNS"),
+		BytesPerSecond: envInt("ENOWX_CLOUD_RELAY_TEAM_RATE"),
+		Burst:          envInt("ENOWX_CLOUD_RELAY_TEAM_BURST"),
+	}
 	addr, data := env("ENOWX_CLOUD_ADDR", ":8080"), env("ENOWX_CLOUD_DATA", "data")
 	if err := os.MkdirAll(data, 0o700); err != nil {
 		return err
@@ -128,4 +135,10 @@ func run(log *slog.Logger) error {
 		return err
 	}
 	return nil
+}
+
+// envInt is a whole number from the environment, 0 when unset or not one.
+func envInt(name string) int {
+	n, _ := strconv.Atoi(os.Getenv(name))
+	return n
 }

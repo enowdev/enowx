@@ -14,6 +14,7 @@ import (
 
 	"github.com/enowx/enowx/client"
 	"github.com/enowx/enowx/cloud/api"
+	"github.com/enowx/enowx/cloud/relay"
 	"github.com/enowx/enowx/proto"
 	"github.com/enowx/enowx/ui/icon"
 	"github.com/enowx/enowx/ui/textfmt"
@@ -23,9 +24,10 @@ import (
 
 // Hosts shared with a team (docs/cloud.md, Hosts and sessions): the
 // connected host's share, picked in the team's Hosts tab, and the hosts
-// the team's members share, in the rail. Opening one connects to it over
-// Tailscale as a visitor, with a ticket the cloud gives this member for
-// it, and shows its shared projects and their sessions.
+// the team's members share, in the rail. Opening one connects to it as a
+// visitor, through the cloud's relay (or its Tailscale address, for a host
+// of an older enowX), with a ticket the cloud gives this member for it, and
+// shows its shared projects and their sessions.
 
 // pageTeamHost is a team's shared host, as a visitor sees it.
 const pageTeamHost = "teamhost"
@@ -139,10 +141,12 @@ func (a *App) hostShareBody(c *ui.Context, team api.Team) {
 			shared, allow = t.Projects, t.AllowSessions
 		}
 	}
-	widget.CardNote(c, "The projects picked show to the team: their sessions and files. Members reach "+a.host.Name+" over Tailscale: share its node with their Tailscale accounts.", 0)
+	widget.CardNote(c, "The projects picked show to the team: their sessions and files. Members reach "+a.host.Name+" through the cloud's relay, end to end encrypted: the relay can't read what passes.", 0)
 	switch {
 	case th.share.Err != "" && len(shared) > 0:
 		widget.Notice(c, icon.Alert, theme.Warning, th.share.Err, "", nil)
+	case th.share.Relay && len(shared) > 0:
+		widget.Running(c.Key("addr"), "Connected to the relay: members can reach it", widget.RunStyle{Size: theme.TextLabel, Color: theme.Done})
 	case th.share.Addr != "" && len(shared) > 0:
 		widget.Running(c.Key("addr"), "Members reach it at "+th.share.Addr, widget.RunStyle{Size: theme.TextLabel, Color: theme.Done})
 	}
@@ -185,7 +189,7 @@ func (a *App) shareHost(team, name string, projects []string) {
 		return
 	}
 	a.confirm("Share "+a.host.Name+" with "+name+"?",
-		"The team's members see the projects you pick here, their sessions and files, reaching "+a.host.Name+" over Tailscale. Each signs in with a ticket the cloud gives them; take a project back here any time.",
+		"The team's members see the projects you pick here, their sessions and files, reaching "+a.host.Name+" through the cloud's relay, which can't read what passes. Each signs in with a ticket the cloud gives them; take a project back here any time.",
 		"Share", do)
 }
 
@@ -269,11 +273,11 @@ func visitHost(cl *client.Client, h proto.TeamHost, onEvent func(proto.Event)) (
 	if err := cl.CloudCall("POST", teamPath(api.PathHostTickets, h.Team), api.HostTicketParams{Host: h.Device}, &tk); err != nil {
 		return nil, proto.Visitor{}, fmt.Errorf("a ticket into %s: %s", h.Name, client.Explain(err))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	nc, err := (&net.Dialer{}).DialContext(ctx, "tcp", h.Addr)
+	nc, err := reachHost(ctx, h, tk)
 	if err != nil {
-		return nil, proto.Visitor{}, fmt.Errorf("can't reach %s at %s: is its node shared with your Tailscale account, and Tailscale on here? (%v)", h.Name, h.Addr, err)
+		return nil, proto.Visitor{}, err
 	}
 	vc, err := client.New(nc, onEvent)
 	if err != nil {
@@ -286,6 +290,37 @@ func visitHost(cl *client.Client, h proto.TeamHost, onEvent func(proto.Event)) (
 		return nil, proto.Visitor{}, errors.New(h.Name + " didn't let you in: " + client.Explain(err))
 	}
 	return vc, me, nil
+}
+
+// reachHost connects to h: through the relay when both it and the cloud
+// have one, else at its Tailscale address (a host of an older enowX).
+func reachHost(ctx context.Context, h proto.TeamHost, tk api.HostTicket) (net.Conn, error) {
+	var viaRelay error
+	if h.Key != "" && tk.Relay != "" {
+		nc, err := relay.Dial(ctx, tk.Relay, tk.Ticket, h.Key)
+		if err == nil {
+			return nc, nil
+		}
+		viaRelay = err
+		if errors.Is(err, relay.ErrHostKey) {
+			// Not the host its team announced: no other way is safer.
+			return nil, fmt.Errorf("can't reach %s: %v", h.Name, err)
+		}
+	}
+	if h.Addr == "" {
+		if viaRelay == nil {
+			return nil, fmt.Errorf("can't reach %s: it shares no way in yet; ask %s to update enowX", h.Name, h.Owner)
+		}
+		return nil, fmt.Errorf("can't reach %s through the relay: %v", h.Name, viaRelay)
+	}
+	nc, err := (&net.Dialer{}).DialContext(ctx, "tcp", h.Addr)
+	if err != nil {
+		if viaRelay != nil {
+			return nil, fmt.Errorf("can't reach %s through the relay (%v), nor at %s (%v)", h.Name, viaRelay, h.Addr, err)
+		}
+		return nil, fmt.Errorf("can't reach %s at %s: it may be off, or offline (%v)", h.Name, h.Addr, err)
+	}
+	return nc, nil
 }
 
 // refreshVisit reads the shared host's projects and sessions again.

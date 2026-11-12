@@ -52,7 +52,8 @@ func (s *Server) cloudChanged() {
 	if st, err := s.cloudStatus(); err == nil {
 		s.broadcast(proto.EventCloudChanged, st)
 	}
-	s.spacesChanged() // signed in or out: the account's teams' spaces
+	s.spacesChanged()     // signed in or out: the account's teams' spaces
+	go s.restartSharing() // the relay is the cloud's, with the host's token
 }
 
 // cloudSetURL sets the cloud's address, checking it is one; another
