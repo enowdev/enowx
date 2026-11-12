@@ -221,3 +221,113 @@ func refusedWith(err error, status int) bool {
 	var r *relaypkg.Refused
 	return errors.As(err, &r) && r.Status == status
 }
+
+// idleCutter stands for a proxy on the way that cuts a connection which
+// carried nothing either way for cut, as Cloudflare's does: it passes
+// connections to target.
+func idleCutter(t *testing.T, target string, cut time.Duration) string {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { l.Close() })
+	go func() {
+		for {
+			in, err := l.Accept()
+			if err != nil {
+				return
+			}
+			out, err := net.Dial("tcp", target)
+			if err != nil {
+				in.Close()
+				continue
+			}
+			var mu sync.Mutex
+			last := time.Now()
+			pass := func(dst, src net.Conn) {
+				buf := make([]byte, 32<<10)
+				for {
+					n, err := src.Read(buf)
+					if n > 0 {
+						mu.Lock()
+						last = time.Now()
+						mu.Unlock()
+						dst.Write(buf[:n])
+					}
+					if err != nil {
+						in.Close()
+						out.Close()
+						return
+					}
+				}
+			}
+			go pass(out, in)
+			go pass(in, out)
+			go func() {
+				for range time.Tick(cut / 10) {
+					mu.Lock()
+					idle := time.Since(last)
+					mu.Unlock()
+					if idle > cut {
+						in.Close()
+						out.Close()
+						return
+					}
+				}
+			}()
+		}
+	}()
+	return l.Addr().String()
+}
+
+// A pair that carries nothing for longer than a proxy on the way lets a
+// connection idle stays up: the relay pings both its sides.
+func TestRelayQuietPairStaysUp(t *testing.T) {
+	r := startRelayTeam(t, Config{Relay: RelayLimits{Ping: 100 * time.Millisecond}})
+	cut := "http://" + idleCutter(t, r.srv.Listener.Addr().String(), 500*time.Millisecond)
+	// Ada's host reaches the relay through the proxy too.
+	r.host.Close()
+	host := &relaypkg.Host{URL: cut, Token: r.adaTok, Key: r.key, Retry: 50 * time.Millisecond}
+	host.Start()
+	t.Cleanup(func() { host.Close() })
+	go func() {
+		for {
+			c, err := host.Accept()
+			if err != nil {
+				return
+			}
+			go io.Copy(c, c)
+		}
+	}()
+	for up, _ := host.Status(); !up; up, _ = host.Status() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	c, err := relaypkg.Dial(ctx, "ws"+cut[len("http"):]+api.PathRelayConnect, r.ticket(t), r.key.Public())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	// A member's client reads all along, as the app's does.
+	got := make(chan []byte, 1)
+	go func() {
+		back := make([]byte, 10)
+		n, _ := io.ReadFull(c, back)
+		got <- back[:n]
+	}()
+	time.Sleep(2 * time.Second) // four times what the proxy lets idle
+	msg := []byte("still here")
+	if _, err := c.Write(msg); err != nil {
+		t.Fatalf("the quiet pair was cut: %v", err)
+	}
+	select {
+	case back := <-got:
+		if !bytes.Equal(back, msg) {
+			t.Fatalf("the quiet pair was cut: %q", back)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("nothing came back")
+	}
+}
