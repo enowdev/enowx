@@ -242,9 +242,10 @@ type App struct {
 	// portOffers are ports sessions just opened, offered to open.
 	portOffers []portOffer
 	// conflicts are the conflict radar's last look, by project path.
-	conflicts  map[string][]proto.Conflict
-	budget     *budgetForm // setting a session's budget
-	agentLimit *agentsForm // setting the host's limit of agents at once
+	conflicts     map[string][]proto.Conflict
+	budget        *budgetForm // setting a session's budget
+	agentLimit    *agentsForm // setting the host's limit of agents at once
+	shortcutsForm *shortcutDialogState
 	usage      usageview.Meter
 	usageShown bool          // the Resource usage page was shown last frame
 	tok        tokensState   // token usage: the Tokens tab, sessions' badges (tokens.go)
