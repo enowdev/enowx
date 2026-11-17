@@ -53,7 +53,7 @@ var LiquidGlass = Style{
 }
 
 // Styles is every style, in the order the app offers them.
-var Styles = []Style{LiquidGlass, Ledger, Tonal, Bento}
+var Styles = []Style{LiquidGlass, Windows11, Ledger, Tonal, Bento}
 
 // style is the style in use.
 var style Style
