@@ -100,6 +100,10 @@ type appState struct {
 	HideSessions bool `json:"hideSessions,omitempty"`
 	// GOA shows GOD of Agents mode (goa.go).
 	GOA bool `json:"goa,omitempty"`
+	// ShortcutsOff disables all application shortcuts when true.
+	ShortcutsOff bool `json:"shortcutsOff,omitempty"`
+	// Shortcuts holds per-shortcut custom key combinations and disable states.
+	Shortcuts map[string]ShortcutConfig `json:"shortcuts,omitempty"`
 }
 
 // palette is the palette the user picked, with their accent.
