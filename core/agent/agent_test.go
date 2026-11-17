@@ -29,6 +29,9 @@ func TestArgv(t *testing.T) {
 		{"omp", Launch{SkipPermissions: true, Continue: true}, []string{"omp", "--continue", "--auto-approve"}},
 		{"omp", Launch{Prompt: "test", Resume: "sess-123"}, []string{"omp", "--resume", "sess-123"}},
 		{"omp", Launch{Continue: true, SessionDir: "/s/1"}, []string{"omp", "--continue", "--session-dir", "/s/1"}},
+		{"antigravity", Launch{Prompt: "hi", SkipPermissions: true}, []string{"agy", "--dangerously-skip-permissions", "--prompt-interactive", "hi"}},
+		{"antigravity", Launch{SkipPermissions: true, Continue: true}, []string{"agy", "--continue", "--dangerously-skip-permissions"}},
+		{"antigravity", Launch{Prompt: "test", Resume: "uuid-123"}, []string{"agy", "--conversation", "uuid-123"}},
 		// An agent without a folder of its own for them keeps its own.
 		{"pi", Launch{SessionDir: "/s/1"}, []string{"pi"}},
 	}
