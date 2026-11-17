@@ -51,6 +51,7 @@ func (a *App) appearancePage(c *ui.Context) {
 					widget.Card(c).Children(func() { a.appearanceMode(c) })
 					widget.Card(c).Children(func() { a.accentPicker(c) })
 				})
+				widget.Card(c).Children(func() { a.windowControlStyleCard(c) })
 			})
 			widget.Card(c).Grow(5).Basis(0).Children(func() { a.themePreview(c) })
 		})
