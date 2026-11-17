@@ -27,6 +27,8 @@ type appState struct {
 	CloneDirs        map[string]string `json:"cloneDirs,omitempty"`        // host ID → the folder cloned into last
 	Theme            string            `json:"theme,omitempty"`            // palette ID
 	ThemeMode        string            `json:"themeMode,omitempty"`        // dark (default), light, or system
+	// WindowControlStyle is "mac" (default) or "windows".
+	WindowControlStyle string `json:"windowControlStyle,omitempty"`
 	// BackgroundImage is this device's image behind the panels, "" for the
 	// theme's own; BackgroundOpacity how opaque the main surfaces over it are,
 	// nil for the default; BackgroundBlur its blur's sigma, nil for the default.
