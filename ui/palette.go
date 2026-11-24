@@ -44,7 +44,7 @@ func (a *App) commands() []command {
 	var out []command
 	p, hasProject := a.currentProject()
 	if hasProject {
-		out = append(out, command{"new", "New session", modKey + "N", icon.Plus, func() { a.openNewSession(p) }})
+		out = append(out, command{"new", "New session", a.shortcutLabel(ShortcutNewSession), icon.Plus, func() { a.openNewSession(p) }})
 	}
 	out = append(out, command{"sessions", "Sessions", "Page", icon.Terminal, func() {
 		if a.goaOn() {
@@ -79,14 +79,14 @@ func (a *App) commands() []command {
 	}
 	out = append(out,
 		command{"add-host", "Add host", "A VPS or another device", icon.Server, a.openAddHost},
-		command{"open", "Open folder", modKey + "O", icon.FolderPlus, a.openFolder},
+		command{"open", "Open folder", a.shortcutLabel(ShortcutOpenFolder), icon.FolderPlus, a.openFolder},
 		command{"clone", "Clone from Git", "", icon.Git, a.openClone},
-		command{"goto-file", "Go to file…", modKey + "P", icon.File, a.openQuickOpen},
+		command{"goto-file", "Go to file…", a.shortcutLabel(ShortcutQuickOpen), icon.File, a.openQuickOpen},
 	)
 	if hasProject && a.client != nil {
 		out = append(out, command{"history", "Past conversations", p.Name, icon.Chat, func() { a.openHistory(p) }})
 	}
-	out = append(out, command{"rail", "Expand or collapse sidebar", modKey + "B", icon.Sidebar, func() { a.state.RailWide = !a.state.RailWide }})
+	out = append(out, command{"rail", "Expand or collapse sidebar", a.shortcutLabel(ShortcutSidebar), icon.Sidebar, func() { a.state.RailWide = !a.state.RailWide }})
 	out = append(out, a.sessionCommands()...)
 	out = append(out, a.runPaletteCommands()...)
 	if hasProject && a.client != nil {
@@ -105,7 +105,7 @@ func (a *App) commands() []command {
 		command{"quit-stop", "Quit and stop all agents", "On this device", icon.Stop, a.quitAndStopAgents},
 		command{"diagnostics", "Save diagnostics for a bug report", "This device's logs and " + a.host.Name + "'s, as a zip", icon.Download, a.saveDiagnostics},
 		command{"updates", "Check for updates", "enowX " + version.String, icon.ArrowUp, func() { a.checkForUpdates(true) }},
-		command{"sessions-panel", "Show or hide the sidebar", modKey + "⇧S", icon.Sidebar, a.toggleSessionsPanel},
+		command{"sessions-panel", "Show or hide the sidebar", a.shortcutLabel(ShortcutSessionsPanel), icon.Sidebar, a.toggleSessionsPanel},
 		command{"floating", "Floating control", floatingKey + " · Over any app", icon.Floating, a.toggleFloating},
 	)
 	for _, h := range a.allHosts() {
@@ -135,9 +135,9 @@ func (a *App) sessionCommands() []command {
 			label = "Show one session at a time"
 		}
 		out = append(out,
-			command{"split", label, modKey + "⇧L", icon.Split, func() { a.setSplit(!a.splitOn()) }},
-			command{"next", "Next session", modKey + "⇧]", icon.ChevronRight, func() { a.stepSession(1) }},
-			command{"previous", "Previous session", modKey + "⇧[", icon.ChevronRight, func() { a.stepSession(-1) }},
+			command{"split", label, a.shortcutLabel(ShortcutSplitView), icon.Split, func() { a.setSplit(!a.splitOn()) }},
+			command{"next", "Next session", a.shortcutLabel(ShortcutNextSession), icon.ChevronRight, func() { a.stepSession(1) }},
+			command{"previous", "Previous session", a.shortcutLabel(ShortcutPrevSession), icon.ChevronRight, func() { a.stepSession(-1) }},
 		)
 	}
 	s, ok := a.selectedSession()
@@ -160,7 +160,11 @@ func (a *App) sessionCommands() []command {
 		if a.panelShows(panelChanges) {
 			label = "Hide changes"
 		}
-		out = append(out, command{"changes", label, name + " · " + modKey + "⇧D", icon.Git, func() { a.toggleTool(panelChanges) }})
+		sub := name
+		if lbl := a.shortcutLabel(ShortcutSidePanel); lbl != "" {
+			sub += " · " + lbl
+		}
+		out = append(out, command{"changes", label, sub, icon.Git, func() { a.toggleTool(panelChanges) }})
 	}
 	for _, t := range panelTools[1:] {
 		label := "Show " + strings.ToLower(t.name)
@@ -173,7 +177,11 @@ func (a *App) sessionCommands() []command {
 	if a.maximized != "" {
 		maximize = "Restore session"
 	}
-	out = append(out, command{"maximize", maximize, name + " · " + modKey + "⇧↩", icon.Maximize, func() { a.toggleMaximized(s.ID) }})
+	maxSub := name
+	if lbl := a.shortcutLabel(ShortcutMaximize); lbl != "" {
+		maxSub += " · " + lbl
+	}
+	out = append(out, command{"maximize", maximize, maxSub, icon.Maximize, func() { a.toggleMaximized(s.ID) }})
 	if a.canReview(s) {
 		for _, r := range []struct {
 			action, label string
