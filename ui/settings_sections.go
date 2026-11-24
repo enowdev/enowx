@@ -640,26 +640,6 @@ func (a *App) commandLineCard(c *ui.Context) {
 	})
 }
 
-// shortcutList is the app's keyboard shortcuts, as the keys and what they
-// do.
-func shortcutList() [][2]string {
-	return [][2]string{
-		{modKey + "K", "Command palette"},
-		{modKey + "P", "Go to a file of the session"},
-		{modKey + "N", "New session"},
-		{modKey + "O", "Open a folder"},
-		{modKey + "B", "Expand or collapse the sidebar"},
-		{modKey + "⇧D", "Show or hide the side panel"},
-		{modKey + "⇧S", "Show or hide the Sessions panel"},
-		{floatingKey, "Floating control, over any app"},
-		{modKey + "⇧P", "Browser tool"},
-		{modKey + "⇧L", "Sessions side by side"},
-		{modKey + "⇧]  " + modKey + "⇧[", "Next / previous session"},
-		{modKey + "⇧↩", "Maximize the session"},
-		{modKey + "-click", "Open a path or a local page printed in a terminal"},
-	}
-}
-
 // diagnosticsSection says what the connected host's daemon is, and its
 // log; it restarts it.
 func (a *App) diagnosticsSection(c *ui.Context) {
