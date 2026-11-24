@@ -51,7 +51,7 @@ var Windows11 = Style{
 
 // fluentSurfaces maps a palette to Windows 11 Fluent Design System layers.
 func fluentSurfaces(p Palette) Palette {
-	t := GetFluentTokens(p.Light == false)
+	t := GetFluentTokens(!p.Light)
 
 	if p.Light {
 		p.Ground = t.SurfaceBackground
