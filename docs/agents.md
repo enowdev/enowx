@@ -31,7 +31,7 @@ More agents, started the same way; their flags are those their documentation giv
 | Pi | `pi` | last argument | — | — | [docs](https://pi.dev) |
 | OMP | `omp` | last argument | `--auto-approve` | `--continue` | [docs](https://omp.sh) |
 | Prime Agent | `prime-agent` | `--` | — | — | [docs](https://github.com/PrimeIntellect-ai/prime-agent) |
-| Antigravity | `agy` | `--prompt-interactive` | `--dangerously-skip-permissions` | — | [docs](https://antigravity.google/docs/cli-overview) |
+| Antigravity | `agy` | `--prompt-interactive` | `--dangerously-skip-permissions` | `--continue`, `--conversation ID` | [docs](https://antigravity.google/docs/cli-overview) |
 | Aider | `aider` | typed in once it shows its input | `--yes-always` | — | [docs](https://aider.chat/docs/) |
 | Goose | `goose --version` | typed in once it shows its input | `GOOSE_MODE=auto` in its environment · always `GOOSE_MODE=auto` | — | [docs](https://block.github.io/goose/docs/quickstart/) |
 | Amp | `amp` | typed in once it shows its input | `--dangerously-allow-all` | — | [docs](https://ampcode.com/manual#install) |

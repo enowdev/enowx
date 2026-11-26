@@ -120,8 +120,10 @@ func TestProjectBlockKeepsTheUsersTextAndDoesntDouble(t *testing.T) {
 	if strings.Count(string(data), projectBlockStart) != 1 || strings.Contains(string(data), "older words") || !strings.HasSuffix(string(data), mine) {
 		t.Fatalf("%q", data)
 	}
-	if info, _ := os.Stat(path); info.Mode().Perm() != 0o640 {
-		t.Fatalf("mode %v", info.Mode())
+	if runtime.GOOS != "windows" {
+		if info, _ := os.Stat(path); info.Mode().Perm() != 0o640 {
+			t.Fatalf("mode %v", info.Mode())
+		}
 	}
 	// Off: as it was before.
 	if err := RemoveProjectBlock(dir); err != nil {
