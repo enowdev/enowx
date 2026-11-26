@@ -2,6 +2,17 @@
 
 Each version's section is also what the app's update dialog shows.
 
+## 0.7.5
+
+A Windows 11 look, and window controls on either side of the title bar.
+
+- **Windows 11 style** ([#64](https://github.com/enowdev/enowx/pull/64), by @Kyuzan0). A new style and palette in Appearance: the Fluent design system's surfaces, strokes and accents (Mica/Acrylic-like layers, 8px corners for controls, 12px for cards and panels, Segoe UI Variable), light and dark.
+- **Window controls on either side** ([#65](https://github.com/enowdev/enowx/pull/65), by @Kyuzan0). Appearance gains a choice between the Mac traffic lights on the left and Windows-style caption buttons (minimize, maximize, close) on the right of the title bar. Mac style stays the default.
+
+### What has been tested
+
+- Tests for the two new settings, the buttons' actions and how the title bar's chips fit a narrow window; CI on macOS, Windows and Linux.
+
 ## 0.7.4
 
 Team members reach a shared host through enowX's cloud relay, end to end encrypted: no Tailscale needed on either side.
