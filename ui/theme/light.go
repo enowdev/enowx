@@ -50,6 +50,32 @@ func lightOf(dark Palette, accent ui.Color) Palette {
 		p.darkOf = &dark
 	case Teal.ID:
 		p.Ground, p.Accent = ui.Hex("#E6F0F0"), ui.Hex("#285F63")
+	case Windows11Palette.ID:
+		p.Ground = ui.Hex("#F3F3F3")
+		p.Background = ui.Hex("#F3F3F3")
+		p.Panel = ui.RGBA(255, 255, 255, 0.70)
+		p.Frame = ui.RGBA(255, 255, 255, 0.90)
+		p.Raised = ui.RGBA(0, 0, 0, 0.035)
+		p.Sunken = ui.RGBA(0, 0, 0, 0.06)
+		p.Hover = ui.RGBA(0, 0, 0, 0.05)
+		p.Selected = ui.RGBA(0, 0, 0, 0.10)
+		p.Dialog = ui.RGBA(252, 252, 254, 0.98)
+		p.Popover = ui.RGBA(252, 252, 254, 0.98)
+		p.Border = ui.RGBA(0, 0, 0, 0.12)
+		p.BorderStrong = ui.Hex("#778497")
+		p.Text = ui.Hex("#1C2130")
+		p.TextStrong = ui.Hex("#0C101C")
+		p.TextSoft = ui.Hex("#475467")
+		p.Muted = ui.Hex("#526075")
+		p.Accent = ui.Hex("#0067C0")
+		p.Working = ui.Hex("#0067C0")
+		p.Done = ui.Hex("#166B42")
+		p.Warning = ui.Hex("#855300")
+		p.Error = ui.Hex("#B3261E")
+		p.Idle = ui.Hex("#5F6673")
+		p.Add = ui.Hex("#166B42")
+		p.Del = ui.Hex("#B3261E")
+		p.Now = ui.Hex("#0067C0")
 	}
 	if accent.A != 0 {
 		p.Accent = accent

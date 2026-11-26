@@ -87,13 +87,14 @@ var (
 )
 
 // Palettes is every built-in palette.
-var Palettes = []Palette{Champagne, Obsidian, Midnight, Copper, Graphite, Teal}
+var Palettes = []Palette{Champagne, Obsidian, Midnight, Copper, Graphite, Teal, Windows11Palette}
 
 // Default is the palette of who hasn't picked one.
 var Default = Teal
 
 // Accents are the colors a user can give any palette instead of its own.
 var Accents = []ui.Color{
+	ui.Hex("#0067C0"), // Windows 11 royal blue
 	ui.Hex("#0A6FE0"), // blue
 	ui.Hex("#2B7A5B"), // green
 	ui.Hex("#8A5CF6"), // violet

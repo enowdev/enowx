@@ -12,7 +12,7 @@ import (
 func (a *App) stylePicker(c *ui.Context) {
 	ui.Column(c.Key("style-picker")).FillWidth().Gap(theme.S2).Children(func() {
 		ui.Text(c, "Style").FontSize(theme.TextUI).FontWeight(500)
-		ui.Grid(c).FillWidth().Columns(4).Gap(theme.S3).Children(func() {
+		ui.Grid(c).FillWidth().Columns(len(theme.Styles)).Gap(theme.S3).Children(func() {
 			current := theme.StyleByID(a.state.UIStyle).ID
 			for _, s := range theme.Styles {
 				if a.styleCard(c.Key(s.ID), s, s.ID == current) && s.ID != current {
